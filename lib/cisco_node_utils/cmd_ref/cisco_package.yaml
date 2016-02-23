@@ -1,0 +1,25 @@
+# yum
+---
+install_activate:
+  set_context:
+    'install add source <src> <pkg_filename> activate'
+  set_value:
+    'install activate <pkg>'
+
+install_add:
+  set_value: 'install add source <src> <pkg_filename> activate'
+
+install_commit:
+  set_value: 'install commit'
+
+install_deactivate:
+  set_value: 'install deactivate <pkg>'
+
+install_query:
+  multiple: true
+  get_command: 'show install package <pkg>'
+  # pass in the pkg name, retrieve version
+  #  get_value: '/^%s\S*\s+(\S+)\s+(?:installed|@\S+)/'
+
+install_remove:
+  set_value: 'install remove <pkg>'
