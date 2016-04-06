@@ -100,6 +100,15 @@ module Cisco
       raise e2
     end
 
+    def getyang(**kwargs)
+      node.getyang(**kwargs)
+    rescue Cisco::RequestFailed => e
+      e2 = e.class.new("[#{self}] #{e}", **e.kwargs)
+      e2.set_backtrace(e.backtrace)
+      raise e2
+    end
+
+
     def ios_xr?
       platform == :ios_xr
     end

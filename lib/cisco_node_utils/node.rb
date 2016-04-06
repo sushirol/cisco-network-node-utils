@@ -210,6 +210,10 @@ module Cisco
       @client.get(**kwargs)
     end
 
+    def getyang(**kwargs)
+      @client.getyang(**kwargs)
+    end
+
     # @return [String] such as "Cisco Nexus Operating System (NX-OS) Software"
     def os
       o = config_get('show_version', 'header')

@@ -29,5 +29,6 @@ module Cisco
     # Structured data format specific to NX-API
     :nxapi_structured,
     # TODO: :yang,
+    :yangpathjson,
   ]
 end

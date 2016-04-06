@@ -821,6 +821,7 @@ class TestInterface < CiscoTestCase
   end
 
   def test_interfaces_not_empty
+    puts "TEST"
     refute_empty(Interface.interfaces, 'Error: interfaces collection empty')
   end
 

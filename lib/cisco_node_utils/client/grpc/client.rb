@@ -42,7 +42,7 @@ class Cisco::Client::GRPC < Cisco::Client
     super(address:      address,
           username:     username,
           password:     password,
-          data_formats: [:cli],
+          data_formats: [:cli, :yangpathjson],
           platform:     :ios_xr)
     @config = GRPCConfigOper::Stub.new(address, :this_channel_is_insecure)
     @exec = GRPCExec::Stub.new(address, :this_channel_is_insecure)
@@ -79,6 +79,7 @@ class Cisco::Client::GRPC < Cisco::Client
   def cache_flush
     @cache_hash = {
       'cli_config'           => {},
+      'get_config'          => {},
       'show_cmd_text_output' => {},
       'show_cmd_json_output' => {},
     }
@@ -130,6 +131,51 @@ class Cisco::Client::GRPC < Cisco::Client
     args = ShowCmdArgs.new(cli: command)
     output = req(@exec, 'show_cmd_text_output', args)
     self.class.filter_cli(cli_output: output, context: context, value: value)
+  end
+
+
+  def getyang(data_format: :yangpathjson,
+          command:     nil)
+    fail ArgumentError if command.nil?
+    args = ConfigGetArgs.new(yangpathjson: command)
+    reqyang(@config, 'get_config', args)
+  end
+
+  def reqyang(stub, type, args)
+    debug "Sending '#{type}' request:"
+    if args.is_a?(ConfigGetArgs) 
+      debug "  with yangpathjson: '#{args.yangpathjson}'"
+    end
+    output = Cisco::Client.silence_warnings do
+      response = stub.send(type, args,
+                           timeout:  @timeout,
+                           username: @username,
+                           password: @password)
+      # gRPC server may split the response into multiples
+      response = response.is_a?(Enumerator) ? response.to_a : [response]
+      debug "Got responses: #{response.map(&:class).join(', ')}"
+      # Check for errors first
+      handle_errors(args, response.select { |r| !r.errors.empty? })
+
+      # If we got here, no errors occurred
+      handle_response(args, response)
+    end
+
+    return output
+  rescue ::GRPC::BadStatus => e
+    warn "gRPC error '#{e.code}' during '#{type}' request: "
+    if args.is_a?(ConfigGetArgs)
+      warn "  with yangpathjson: '#{args.yangpathjson}'"
+    end
+    warn "  '#{e.details}'"
+    case e.code
+    when ::GRPC::Core::StatusCodes::UNAVAILABLE
+      raise Cisco::ConnectionRefused, "Connection refused: #{e.details}"
+    when ::GRPC::Core::StatusCodes::UNAUTHENTICATED
+      raise Cisco::AuthenticationFailed, e.details
+    else
+      raise Cisco::ClientError, e.details
+    end
   end
 
   def req(stub, type, args)
@@ -190,6 +236,9 @@ class Cisco::Client::GRPC < Cisco::Client
       # TODO: not yet supported by server to test against
       replies.each { |r| debug "  jsonoutput:\n#{r.jsonoutput}" }
       output = replies.map(&:jsonoutput).join("\n---\n")
+    when /ConfigGetReply/
+      replies.each { |r| debug "  yangjson:\n#{r.yangjson}" }
+      output = replies.map(&:yangjson).join('')
     when /CliConfigReply/
       # nothing to process
       output = ''
