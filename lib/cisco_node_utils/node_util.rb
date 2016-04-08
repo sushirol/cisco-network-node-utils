@@ -44,8 +44,24 @@ module Cisco
       raise e2
     end
 
+    def self.config_getyang(*args)
+      node.config_getyang(*args)
+    rescue Cisco::RequestFailed => e
+      e2 = e.class.new("[#{self}] #{e}", **e.kwargs)
+      e2.set_backtrace(e.backtrace)
+      raise e2
+    end
+
     def config_get(*args)
       node.config_get(*args)
+    rescue Cisco::RequestFailed => e
+      e2 = e.class.new("[#{self}] #{e}", **e.kwargs)
+      e2.set_backtrace(e.backtrace)
+      raise e2
+    end
+
+    def config_getyang(*args)
+      node.config_getyang(*args)
     rescue Cisco::RequestFailed => e
       e2 = e.class.new("[#{self}] #{e}", **e.kwargs)
       e2.set_backtrace(e.backtrace)

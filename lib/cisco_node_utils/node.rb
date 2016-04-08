@@ -64,6 +64,20 @@ module Cisco
               ref)
     end
 
+    def config_getyang(feature, property, *args)
+      ref = @cmd_ref.lookup(feature, property)
+
+      # If we have a default value but no getter, just return the default
+      return ref.default_value if ref.default_value? && !ref.getter?
+
+#      get_args = ref.getter(*args)
+      massage(getyang(command:     ref.get_command),
+                  #data_format: get_args[:data_format],
+                  #context:     get_args[:context],
+                  #value:       get_args[:value]),
+              ref)
+    end
+
     # Attempt to massage the given value into the format specified by the
     # given CmdRef object.
     def massage(value, ref)
