@@ -122,6 +122,36 @@ class Cisco::Client::GRPC < Cisco::Client
     req(@config, 'cli_config', args)
   end
 
+  def setyang(data_format: :yangpathjson,
+          #context:     nil,
+          values:      nil)
+    #context = munge_to_array(context)
+    #values = munge_to_array(values)
+    #super
+    # IOS XR lets us concatenate submode commands together.
+    # This makes it possible to guarantee we are in the correct context:
+    #   context: ['foo', 'bar'], values: ['baz', 'bat']
+    #   ---> values: ['foo bar baz', 'foo bar bat']
+    # However, there's a special case for 'no' commands:
+    #   context: ['foo', 'bar'], values: ['no baz']
+    #   ---> values: ['no foo bar baz'] ---- the 'no' goes at the start
+#    context = context.join(' ')
+#    unless context.empty?
+#      values.map! do |cmd|
+#        match = cmd[/^\s*no\s+(.*)/, 1]
+#        if match
+#          cmd = "no #{context} #{match}"
+#        else
+#          cmd = "#{context} #{cmd}"
+#        end
+#        cmd
+#      end
+#    end
+    # CliConfigArgs wants a newline-separated string of commands
+    args = ConfigArgs.new(yangjson: values)
+    req(@config, 'yang_config', args)
+  end
+ 
   def get(data_format: :cli,
           command:     nil,
           context:     nil,

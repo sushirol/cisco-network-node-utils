@@ -151,6 +151,12 @@ module Cisco
       set(**set_args)
     end
 
+    def config_setyang(feature, property, *args)
+      ref = @cmd_ref.lookup(feature, property)
+      set_args = ref.setter(*args)
+      setyang(**set_args)
+    end
+
     # Clear the cache of CLI output results.
     #
     # If cache_auto is true (default) then this will be performed automatically
@@ -213,6 +219,10 @@ module Cisco
     # @raise [Cisco::RequestFailed] if any command is rejected by the device.
     def set(**kwargs)
       @client.set(**kwargs)
+    end
+
+    def setyang(**kwargs)
+      @client.setyang(**kwargs)
     end
 
     # Send a show command to the device.
