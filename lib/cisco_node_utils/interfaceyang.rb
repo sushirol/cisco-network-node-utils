@@ -13,6 +13,7 @@ module Cisco
     def self.interfaces
       hash = {}
       intf = config_getyang('interfaceyang', 'all_interfaces')
+      puts "out put is ====> #{intf}"
       intf = JSON.parse(intf)
 
       intf_list = intf['Cisco-IOS-XR-ifmgr-cfg:interface-configurations']['interface-configuration']

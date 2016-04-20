@@ -80,6 +80,7 @@ class Cisco::Client::GRPC < Cisco::Client
     @cache_hash = {
       'cli_config'           => {},
       'get_config'          => {},
+      'replace_config'         => {},
       'show_cmd_text_output' => {},
       'show_cmd_json_output' => {},
     }
@@ -122,7 +123,15 @@ class Cisco::Client::GRPC < Cisco::Client
     req(@config, 'cli_config', args)
   end
 
-  def setyang(data_format: :yangpathjson,
+  def rmyang(data_format: :yangjson,
+          context:     nil,
+          values:      nil)
+    #puts "values ====> #{values}"
+    args = ConfigArgs.new(yangjson: values)
+    reqyang(@config, 'delete_config', args)
+  end
+ 
+  def setyang(data_format: :yangjson,
           #context:     nil,
           values:      nil)
     #context = munge_to_array(context)
@@ -148,8 +157,9 @@ class Cisco::Client::GRPC < Cisco::Client
 #      end
 #    end
     # CliConfigArgs wants a newline-separated string of commands
+    puts "values @@====> #{values}"
     args = ConfigArgs.new(yangjson: values)
-    req(@config, 'yang_config', args)
+    reqyang(@config, 'merge_config', args)
   end
  
   def get(data_format: :cli,
@@ -165,9 +175,16 @@ class Cisco::Client::GRPC < Cisco::Client
 
 
   def getyang(data_format: :yangpathjson,
-          command:     nil)
+          command:     nil,
+             value: nil)
     fail ArgumentError if command.nil?
-    args = ConfigGetArgs.new(yangpathjson: command)
+    copy = command.dup
+    copy.gsub! '[null]', value
+    puts copy
+    args = ConfigGetArgs.new(yangpathjson: copy)
+    puts "Cmd ====> #{command}"
+    puts "Copy ====> #{copy}"
+    puts "VALUE ====> #{value}"
     reqyang(@config, 'get_config', args)
   end
 
@@ -175,6 +192,10 @@ class Cisco::Client::GRPC < Cisco::Client
     debug "Sending '#{type}' request:"
     if args.is_a?(ConfigGetArgs) 
       debug "  with yangpathjson: '#{args.yangpathjson}'"
+    end
+    if args.is_a?(ConfigArgs)
+    #if args.is_a?(CommitReplaceArgs)
+      debug " with yangjson: '#{args.yangjson}'"
     end
     output = Cisco::Client.silence_warnings do
       response = stub.send(type, args,
@@ -269,6 +290,9 @@ class Cisco::Client::GRPC < Cisco::Client
     when /ConfigGetReply/
       replies.each { |r| debug "  yangjson:\n#{r.yangjson}" }
       output = replies.map(&:yangjson).join('')
+    when /ConfigReply/
+      # nothing process
+      output = ''
     when /CliConfigReply/
       # nothing to process
       output = ''

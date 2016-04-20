@@ -70,11 +70,11 @@ module Cisco
       # If we have a default value but no getter, just return the default
       return ref.default_value if ref.default_value? && !ref.getter?
 
-#      get_args = ref.getter(*args)
-      massage(getyang(command:     ref.get_command),
+      get_args = ref.getter(*args)
+      massage(getyang(command:     ref.get_command,
                   #data_format: get_args[:data_format],
                   #context:     get_args[:context],
-                  #value:       get_args[:value]),
+                  value:       get_args[:value]),
               ref)
     end
 
@@ -154,7 +154,19 @@ module Cisco
     def config_setyang(feature, property, *args)
       ref = @cmd_ref.lookup(feature, property)
       set_args = ref.setter(*args)
-      setyang(**set_args)
+      #setyang(**set_args)
+
+      setyang(#command:     ref.get_command,
+                  data_format: set_args[:data_format],
+                  #context:     set_args[:context],
+                  values:       set_args[:values])
+
+    end
+
+    def config_rmyang(feature, property, *args)
+      ref = @cmd_ref.lookup(feature, property)
+      set_args = ref.setter(*args)
+      rmyang(**set_args)
     end
 
     # Clear the cache of CLI output results.
@@ -223,6 +235,10 @@ module Cisco
 
     def setyang(**kwargs)
       @client.setyang(**kwargs)
+    end
+
+    def rmyang(**kwargs)
+      @client.rmyang(**kwargs)
     end
 
     # Send a show command to the device.

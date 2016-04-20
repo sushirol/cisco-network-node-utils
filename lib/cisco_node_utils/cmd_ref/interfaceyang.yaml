@@ -2,17 +2,7 @@
 ---
 _template:
   ios_xr:
-    #workds
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations":[null]}'
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {"interface-configuration": [null]}}'
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {"interface-configuration": [{"interface-name": "Loopback0"}]}}'
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {"interface-configuration": [{"interface-name": "GigabitEthernet0/0/0/0"}]}}'
-
-    #doesnt work
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {"interface-configuration": [{"interface-name": "Loopback0",},]}}'
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {"interface-configuration:description": [{"interface-name": "GigabitEthernet0/0/0/0"}]}}'
-    get_command: '{"Cisco-IOS-XR-ifmgr-oper:interface-properties":{"system-view": [null]}}'
-    #get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations": {"interface-configuration": [null]}}'
+    get_command: '{"Cisco-IOS-XR-ifmgr-cfg:interface-configurations":[null]}'
 
 all_interfaces:
   multiple:

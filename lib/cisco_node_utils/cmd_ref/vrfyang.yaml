@@ -1,0 +1,32 @@
+#interface
+---
+_template:
+  ios_xr:
+    get_command: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
+
+address_family:
+  set_value: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "<vrf>", "afs" : {"af-name": "<afi>", "saf-name" : "<safi>"}}}}'
+
+all_vrfs:
+  multiple:
+  ios_xr:
+    get_value: '{"vrf" : {"vrf-name" : [null]}}'
+
+create:
+  ios_xr:
+    set_value:  '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "<vrf>", "create" : [null]}}}'
+
+description:
+  get_value: '{"vrf" : {"vrf-name" : "<vrf>", "description" : [null]}}'
+  set_value:  '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "<vrf>", "description" : "<desc>"}}}'
+  default_value: ''
+
+destroy:
+  ios_xr:
+    set_value:  '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "<vrf>"}}}'
+
+route_distinguisher:
+  _exclude: [ios_xr]
+
+shutdown:
+  _exclude: [ios_xr]
