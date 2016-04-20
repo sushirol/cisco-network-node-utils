@@ -126,7 +126,7 @@ class Cisco::Client::GRPC < Cisco::Client
   def rmyang(data_format: :yangjson,
           context:     nil,
           values:      nil)
-    #puts "values ====> #{values}"
+    debug "values ====> #{values}"
     args = ConfigArgs.new(yangjson: values)
     reqyang(@config, 'delete_config', args)
   end
@@ -157,7 +157,7 @@ class Cisco::Client::GRPC < Cisco::Client
 #      end
 #    end
     # CliConfigArgs wants a newline-separated string of commands
-    puts "values @@====> #{values}"
+    debug "values @@====> #{values}"
     args = ConfigArgs.new(yangjson: values)
     reqyang(@config, 'merge_config', args)
   end
@@ -180,11 +180,10 @@ class Cisco::Client::GRPC < Cisco::Client
     fail ArgumentError if command.nil?
     copy = command.dup
     copy.gsub! '[null]', value
-    puts copy
     args = ConfigGetArgs.new(yangpathjson: copy)
-    puts "Cmd ====> #{command}"
-    puts "Copy ====> #{copy}"
-    puts "VALUE ====> #{value}"
+    debug "Cmd ====> #{command}"
+    debug "Copy ====> #{copy}"
+    debug "VALUE ====> #{value}"
     reqyang(@config, 'get_config', args)
   end
 

@@ -21,7 +21,6 @@ module Cisco
       return hash if vrf_list.nil?
       vrf_list.each do |id|
         name = id["vrf-name"]
-        puts name 
         hash[name] = VrfYang.new(name, false)
       end
       hash
@@ -71,5 +70,46 @@ module Cisco
       config_get_default('vrfyang', 'shutdown')
     end
 
+    # route_distinguisher
+    # Note that this property is supported by both bgp and vrf providers.
+    def route_distinguisher
+      config_get('vrfyang', 'route_distinguisher', vrf: @name)
+    end
+
+    def route_distinguisher=(rd)
+      # feature bgp and nv overlay required for rd cli in NXOS
+      if platform == :nexus
+        Feature.bgp_enable
+        Feature.nv_overlay_enable      # TBD: Only req'd for n7k?
+        Feature.nv_overlay_evpn_enable # TBD: Only req'd for n7k?
+      end
+      if rd == default_route_distinguisher
+        state = 'no'
+        rd = ''
+      else
+        state = ''
+      end
+      config_set('vrfyang', 'route_distinguisher', state: state, vrf: @name, rd: rd)
+    end
+
+    def default_route_distinguisher
+      config_get_default('vrfyang', 'route_distinguisher')
+    end
+
+    # Vni (Getter/Setter/Default)
+    def vni
+      config_get('vrfyang', 'vni', vrf: @name)
+    end
+
+    def vni=(id)
+      Feature.vn_segment_vlan_based_enable if platform == :nexus
+      no_cmd = (id) ? '' : 'no'
+      id = (id) ? id : vni
+      config_set('vrfyang', 'vni', vrf: @name, state: no_cmd, id: id)
+    end
+
+    def default_vni
+      config_get_default('vrfyang', 'vni')
+    end
   end
 end

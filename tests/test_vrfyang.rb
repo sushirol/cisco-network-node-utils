@@ -105,23 +105,22 @@ class TestVrfYang < CiscoTestCase
     v.destroy
   end
 
-=begin
-  #def test_vni
-    #skip('Platform does not support MT-lite') unless Vni.mt_lite_support
-    #vrf = Vrf.new('test_vni')
-    #vrf.vni = 4096
-    #assert_equal(4096, vrf.vni,
-                 #"vrf vni should be set to '4096'")
-    #vrf.vni = vrf.default_vni
-    #assert_equal(vrf.default_vni, vrf.vni,
-                 #'vrf vni should be set to default value')
-    #vrf.destroy
-  #rescue RuntimeError => e
-    #hardware_supports_feature?(e.message)
-  #end
+  def test_vni
+    skip('Platform does not support MT-lite') unless Vni.mt_lite_support
+    vrf = VrfYang.new('test_vni')
+    vrf.vni = 4096
+    assert_equal(4096, vrf.vni,
+                 "vrf vni should be set to '4096'")
+    vrf.vni = vrf.default_vni
+    assert_equal(vrf.default_vni, vrf.vni,
+                 'vrf vni should be set to default value')
+    vrf.destroy
+  rescue RuntimeError => e
+    hardware_supports_feature?(e.message)
+  end
 
   def test_route_distinguisher
-    v = Vrf.new('green')
+    v = VrfYang.new('green')
     if platform == :ios_xr
       # Must be configured under BGP in IOS XR
       assert_nil(v.route_distinguisher)
@@ -144,5 +143,4 @@ class TestVrfYang < CiscoTestCase
                  'v route_distinguisher should *NOT* be configured')
     v.destroy
   end
-=end
 end
