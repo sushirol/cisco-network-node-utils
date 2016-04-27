@@ -1,4 +1,3 @@
-#!/usr/bin/env ruby
 # Copyright (c) 2015-2016 Cisco and/or its affiliates.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +14,11 @@
 
 require_relative 'ciscotest'
 require_relative '../lib/cisco_node_utils/vrfyang'
+require_relative '../lib/cisco_node_utils/vni'
 
-# TestRouterBgp - Minitest for RouterBgp class
+include Cisco
+
+# TestVrf - Minitest for Vrf node utility class
 class TestVrfYang < CiscoTestCase
   VRF_NAME_SIZE = 33
   @@pre_clean_needed = true # rubocop:disable Style/ClassVars

@@ -9,11 +9,10 @@ _template:
     get_command: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
 
 address_family:
-  ios_xr:
     set_value: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "<vrf>", "afs" : {"af-name": "<afi>", "saf-name" : "<safi>"}}}}'
 
 all_vrfs:
-  multiple:
+  multiple: true
   context: ~
   nexus:
     get_value: '/^vrf context (.*)/'
@@ -41,6 +40,7 @@ destroy:
     set_value:  '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "<vrf>"}}}'
 
 route_distinguisher:
+  # Only configurable under BGP in IOS XR, not under VRF context
   _exclude: [ios_xr]
   get_value: '/^rd (\S+)$/'
   set_value: '<state> rd <rd>'
