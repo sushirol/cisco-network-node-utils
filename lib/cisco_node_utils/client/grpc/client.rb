@@ -80,7 +80,7 @@ class Cisco::Client::GRPC < Cisco::Client
     @cache_hash = {
       'cli_config'           => {},
       'get_config'          => {},
-      'replace_config'         => {},
+      #'replace_config'         => {},
       'show_cmd_text_output' => {},
       'show_cmd_json_output' => {},
     }
@@ -131,32 +131,15 @@ class Cisco::Client::GRPC < Cisco::Client
     reqyang(@config, 'delete_config', args)
   end
  
-  def setyang(data_format: :yangjson,
-          #context:     nil,
+  def replaceyang(data_format: :yangjson,
           values:      nil)
-    #context = munge_to_array(context)
-    #values = munge_to_array(values)
-    #super
-    # IOS XR lets us concatenate submode commands together.
-    # This makes it possible to guarantee we are in the correct context:
-    #   context: ['foo', 'bar'], values: ['baz', 'bat']
-    #   ---> values: ['foo bar baz', 'foo bar bat']
-    # However, there's a special case for 'no' commands:
-    #   context: ['foo', 'bar'], values: ['no baz']
-    #   ---> values: ['no foo bar baz'] ---- the 'no' goes at the start
-#    context = context.join(' ')
-#    unless context.empty?
-#      values.map! do |cmd|
-#        match = cmd[/^\s*no\s+(.*)/, 1]
-#        if match
-#          cmd = "no #{context} #{match}"
-#        else
-#          cmd = "#{context} #{cmd}"
-#        end
-#        cmd
-#      end
-#    end
-    # CliConfigArgs wants a newline-separated string of commands
+    debug "values ====> #{values}"
+    args = ConfigArgs.new(yangjson: values)
+    reqyang(@config, 'replace_config', args)
+  end
+
+  def setyang(data_format: :yangjson,
+          values:      nil)
     debug "values @@====> #{values}"
     args = ConfigArgs.new(yangjson: values)
     reqyang(@config, 'merge_config', args)
@@ -205,6 +188,8 @@ class Cisco::Client::GRPC < Cisco::Client
       response = response.is_a?(Enumerator) ? response.to_a : [response]
       debug "Got responses: #{response.map(&:class).join(', ')}"
       # Check for errors first
+      debug "args ====> #{args}"
+      debug "response =====> #{response}"
       handle_errors(args, response.select { |r| !r.errors.empty? })
 
       # If we got here, no errors occurred

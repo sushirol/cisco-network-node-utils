@@ -241,6 +241,10 @@ module Cisco
       @client.rmyang(**kwargs)
     end
 
+    def replaceyang(**kwargs)
+      @client.replaceyang(**kwargs)
+    end
+
     # Send a show command to the device.
     # In general, clients should use config_get() rather than calling
     # this function directly.
