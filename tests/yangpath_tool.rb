@@ -14,7 +14,6 @@
 # limitations under the License.
 
 require_relative 'ciscotest'
-require_relative '../lib/cisco_node_utils/vrfyang'
 require 'cisco_node_utils' 
 require 'json'
 
