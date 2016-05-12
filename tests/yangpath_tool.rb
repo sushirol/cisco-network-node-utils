@@ -16,6 +16,7 @@
 require_relative 'ciscotest'
 require_relative '../lib/cisco_node_utils/vrfyang'
 require 'cisco_node_utils' 
+require 'json'
 
 # TestRouterBgp - Minitest for RouterBgp class
 class TestVrfYang < CiscoTestCase
@@ -23,11 +24,31 @@ class TestVrfYang < CiscoTestCase
 
   def test_create
     node = Cisco::Node.instance
-    #vrfs= node.getyang(command: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}', value: '[null]')
+    vrfs= node.getyang(command: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}', value: '[null]')
+    puts vrfs
     #puts vrfs
+    #puts JSON.dump(vrfs)
+    #yang = JSON.dump(vrfs)
+    #yang.gsub! '\n', ''
+    #yang.gsub! '\"', '"'
+    #yang.gsub!(/\s+/, "")
+    #yang.gsub! 'INTERNET', 'NEXTGEN'
 
-    node.setyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : [{"vrf-name" : "grey", "create" : null}, {"vrf-name" : "white", "create" : null}]}}')
-    #node.rmyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "yellow"}}}')
+    #yang = '"{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{"vrf":[{"vrf-name":"VOIP","create":[null],"description":"VoiceoverIP","vpn-id":{"vpn-oui":0,"vpn-index":0}},{"vrf-name":"NEXTGEN","create":[null],"description":"Genericexternaltraffic","vpn-id":{"vpn-oui":64,"vpn-index":24}}]}}"'
+    #node.replaceyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "grey"}}}')
+    #node.replaceyang(values: '{Cisco-IOS-XR-infra-rsi-cfg:vrfs:{"vrf" : {"vrf-name" : "red", "create":null}}}')
+    #node.replaceyang(values: '{"Cisco-IOS-XR-cdp-cfg:cdp": {"hold-time": 200}}')
+    #node.replaceyang(values: '{Cisco-IOS-XR-infra-rsi-cfg:vrfs:{vrf:{vrf-name:grey,create:[null]}}}')
+    #node.setyang(values: '{Cisco-IOS-XR-infra-rsi-cfg:vrfs:{vrf:{vrf-name:grey,create:[null]}}}')
+    #node.setyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{"vrf" :{"vrf-name":"grey","create":[null]}}}')
+    #node.setyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{"vrf":{"vrf-name":"grey","create":[null]}}}')
+    #node.replaceyang(values: "#{yang}")
+    #node.setyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "grey", "create" : null}}}')
+    #node.setyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : [{"vrf-name" : "grey", "create" : null}, {"vrf-name" : "white", "create" : null}]}}')
+    #node.rmyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : [{"vrf-name" : "grey"}, {"vrf-name" : "white"}]}}')
+    #node.setyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : [{"vrf-name" : "grey", "create" : null}]}}')
+    #node.rmyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf" : {"vrf-name" : "grey"}}}')
+    #node.rmyang(values: '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}')
   end
 
 end
