@@ -16,7 +16,6 @@ require 'ipaddr'
 require 'resolv'
 require_relative 'basetest'
 require_relative 'platform_info'
-require_relative '../lib/cisco_node_utils/interface'
 require_relative '../lib/cisco_node_utils/node'
 
 include Cisco
