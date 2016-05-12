@@ -176,7 +176,6 @@ class Cisco::Client::GRPC < Cisco::Client
       debug "  with yangpathjson: '#{args.yangpathjson}'"
     end
     if args.is_a?(ConfigArgs)
-    #if args.is_a?(CommitReplaceArgs)
       debug " with yangjson: '#{args.yangjson}'"
     end
     output = Cisco::Client.silence_warnings do
@@ -187,16 +186,16 @@ class Cisco::Client::GRPC < Cisco::Client
       # gRPC server may split the response into multiples
       response = response.is_a?(Enumerator) ? response.to_a : [response]
       debug "Got responses: #{response.map(&:class).join(', ')}"
-      # Check for errors first
       debug "args ====> #{args}"
       debug "response =====> #{response}"
+      # Check for errors first
       handle_errors(args, response.select { |r| !r.errors.empty? })
 
       # If we got here, no errors occurred
       handle_response(args, response)
     end
-
     return output
+
   rescue ::GRPC::BadStatus => e
     warn "gRPC error '#{e.code}' during '#{type}' request: "
     if args.is_a?(ConfigGetArgs)
