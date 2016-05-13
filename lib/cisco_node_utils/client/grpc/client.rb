@@ -76,53 +76,6 @@ class Cisco::Client::GRPC < Cisco::Client
     fail TypeError, base_msg + 'password must be specified' if password.nil?
   end
 
-  def cache_flush
-    @cache_hash = {
-      'cli_config'           => {},
-      'get_config'          => {},
-      #'replace_config'         => {},
-      'show_cmd_text_output' => {},
-      'show_cmd_json_output' => {},
-    }
-  end
-
-  # Configure the given CLI command(s) on the device.
-  #
-  # @param data_format one of Cisco::DATA_FORMATS. Default is :cli
-  # @param context [Array<String>] Zero or more configuration commands used
-  #                to enter the desired CLI sub-mode
-  # @param values [Array<String>] One or more commands to enter within the
-  #   CLI sub-mode.
-  def set(data_format: :cli,
-          context:     nil,
-          values:      nil)
-    context = munge_to_array(context)
-    values = munge_to_array(values)
-    super
-    # IOS XR lets us concatenate submode commands together.
-    # This makes it possible to guarantee we are in the correct context:
-    #   context: ['foo', 'bar'], values: ['baz', 'bat']
-    #   ---> values: ['foo bar baz', 'foo bar bat']
-    # However, there's a special case for 'no' commands:
-    #   context: ['foo', 'bar'], values: ['no baz']
-    #   ---> values: ['no foo bar baz'] ---- the 'no' goes at the start
-    context = context.join(' ')
-    unless context.empty?
-      values.map! do |cmd|
-        match = cmd[/^\s*no\s+(.*)/, 1]
-        if match
-          cmd = "no #{context} #{match}"
-        else
-          cmd = "#{context} #{cmd}"
-        end
-        cmd
-      end
-    end
-    # CliConfigArgs wants a newline-separated string of commands
-    args = CliConfigArgs.new(cli: values.join("\n"))
-    req(@config, 'cli_config', args)
-  end
-
   def rmyang(data_format: :yangjson,
           context:     nil,
           values:      nil)
@@ -145,18 +98,6 @@ class Cisco::Client::GRPC < Cisco::Client
     reqyang(@config, 'merge_config', args)
   end
  
-  def get(data_format: :cli,
-          command:     nil,
-          context:     nil,
-          value:       nil)
-    super
-    fail ArgumentError if command.nil?
-    args = ShowCmdArgs.new(cli: command)
-    output = req(@exec, 'show_cmd_text_output', args)
-    self.class.filter_cli(cli_output: output, context: context, value: value)
-  end
-
-
   def getyang(data_format: :yangpathjson,
           command:     nil,
              value: nil)
@@ -200,48 +141,6 @@ class Cisco::Client::GRPC < Cisco::Client
     warn "gRPC error '#{e.code}' during '#{type}' request: "
     if args.is_a?(ConfigGetArgs)
       warn "  with yangpathjson: '#{args.yangpathjson}'"
-    end
-    warn "  '#{e.details}'"
-    case e.code
-    when ::GRPC::Core::StatusCodes::UNAVAILABLE
-      raise Cisco::ConnectionRefused, "Connection refused: #{e.details}"
-    when ::GRPC::Core::StatusCodes::UNAUTHENTICATED
-      raise Cisco::AuthenticationFailed, e.details
-    else
-      raise Cisco::ClientError, e.details
-    end
-  end
-
-  def req(stub, type, args)
-    if cache_enable? && @cache_hash[type] && @cache_hash[type][args.cli]
-      return @cache_hash[type][args.cli]
-    end
-
-    debug "Sending '#{type}' request:"
-    if args.is_a?(ShowCmdArgs) || args.is_a?(CliConfigArgs)
-      debug "  with cli: '#{args.cli}'"
-    end
-    output = Cisco::Client.silence_warnings do
-      response = stub.send(type, args,
-                           timeout:  @timeout,
-                           username: @username,
-                           password: @password)
-      # gRPC server may split the response into multiples
-      response = response.is_a?(Enumerator) ? response.to_a : [response]
-      debug "Got responses: #{response.map(&:class).join(', ')}"
-      # Check for errors first
-      handle_errors(args, response.select { |r| !r.errors.empty? })
-
-      # If we got here, no errors occurred
-      handle_response(args, response)
-    end
-
-    @cache_hash[type][args.cli] = output if cache_enable? && !output.empty?
-    return output
-  rescue ::GRPC::BadStatus => e
-    warn "gRPC error '#{e.code}' during '#{type}' request: "
-    if args.is_a?(ShowCmdArgs) || args.is_a?(CliConfigArgs)
-      warn "  with cli: '#{args.cli}'"
     end
     warn "  '#{e.details}'"
     case e.code

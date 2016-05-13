@@ -14,24 +14,16 @@ RuboCop::RakeTask.new
 RSpec::Core::RakeTask.new(:spec_no_clients) do |t|
   t.pattern = 'spec/no_clients_spec.rb'
 end
-#RSpec::Core::RakeTask.new(:spec_nxapi_only) do |t|
-  #t.pattern = 'spec/nxapi_only_spec.rb'
-#end
 RSpec::Core::RakeTask.new(:spec_grpc_only) do |t|
   t.pattern = 'spec/grpc_only_spec.rb'
 end
 RSpec::Core::RakeTask.new(:spec_all_clients) do |t|
   t.pattern = 'spec/all_clients_spec.rb'
 end
-#RSpec::Core::RakeTask.new(:spec_yaml) do |t|
-  #t.pattern = 'spec/yaml_spec.rb'
-#end
 
 task spec: [:spec_no_clients,
-            #:spec_nxapi_only,
             :spec_grpc_only,
             :spec_all_clients,
-            #:spec_yaml,
            ]
 
 task :build do
@@ -40,8 +32,8 @@ end
 
 Rake::TestTask.new do |t|
   t.libs << 'lib'
-  t.libs << 'tests'
-  t.pattern = 'tests/test_*.rb'
+  #t.libs << 'tests'
+  #t.pattern = 'tests/test_*.rb'
   t.warning = true
   t.verbose = true
   t.options = '-v'
