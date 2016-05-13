@@ -1,8 +1,0 @@
-# system
----
-resources:
-  nexus:
-    get_command: "show system resources"
-  # ios_xr:
-    # grpc doesn't allow this command
-    # get_command: 'monitor threads iteration 1'
