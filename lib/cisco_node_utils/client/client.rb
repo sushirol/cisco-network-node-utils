@@ -25,7 +25,7 @@ include Cisco::Logger
 
 # Base class for clients of various RPC formats
 class Cisco::Client
-  @@clients = [] # rubocop:disable Style/ClassVars
+  @@clients = [] 
 
   def self.clients
     @@clients
@@ -53,9 +53,6 @@ class Cisco::Client
     @password = password
     self.data_formats = data_formats
     self.platform = platform
-    @cache_enable = true
-    @cache_auto = true
-    cache_flush
   end
 
   def validate_args(address, username, password)
@@ -127,84 +124,6 @@ class Cisco::Client
 
   def inspect
     "<#{self.class} of #{@address}>"
-  end
-
-  def cache_enable?
-    @cache_enable
-  end
-
-  def cache_enable=(enable)
-    @cache_enable = enable
-    cache_flush unless enable
-  end
-
-  def cache_auto?
-    @cache_auto
-  end
-
-  attr_writer :cache_auto
-
-  # Clear the cache of CLI output results.
-  #
-  # If cache_auto is true (default) then this will be performed automatically
-  # whenever a set() is called, but providers may also call this
-  # to explicitly force the cache to be cleared.
-  def cache_flush
-    # to be implemented by subclasses
-  end
-
-  # Configure the given state on the device.
-  #
-  # @raise [RequestNotSupported] if this client doesn't support the given
-  #   data_format
-  #
-  # @param data_format one of Cisco::DATA_FORMATS. Default is :cli
-  # @param context [String, Array<String>] Context for the configuration
-  # @param values [String, Array<String>] Actual configuration to set
-  def set(data_format: :cli,
-          context:     nil,
-          values:      nil)
-    # subclasses will generally want to call Client.munge_to_array()
-    # on context and/or values before calling super()
-    fail Cisco::RequestNotSupported unless self.supports?(data_format)
-    cache_flush if cache_auto?
-    Cisco::Logger.debug("Set state using data format '#{data_format}'")
-    Cisco::Logger.debug("  with context:\n    #{context.join("\n    ")}") \
-      unless context.nil? || context.empty?
-    Cisco::Logger.debug("  to value(s):\n    #{values.join("\n    ")}") \
-      unless values.nil? || values.empty?
-    # to be implemented by subclasses
-  end
-
-  # Get the given state from the device.
-  #
-  # Unlike set() this will not clear the CLI cache;
-  # multiple calls with the same parameters may return cached data
-  # rather than querying the device repeatedly.
-  #
-  # @raise [RequestNotSupported] if the client doesn't support the data_format
-  # @raise [RequestFailed] if the command is rejected by the device
-  #
-  # @param data_format one of Cisco::DATA_FORMATS. Default is :cli
-  # @param command [String] the get command to execute
-  # @param context [String, Array<String>] Context to refine/filter the results
-  # @param value [String, Regexp] Specific key or regexp to look up
-  # @return [String, Hash, nil] The state found, or nil if not found.
-  def get(data_format: :cli,
-          command:     nil,
-          context:     nil,
-          value:       nil)
-    # subclasses will generally want to call Client.munge_to_array()
-    # on context and/or value before calling super()
-    fail Cisco::RequestNotSupported unless self.supports?(data_format)
-    Cisco::Logger.debug("Get state using data format '#{data_format}'")
-    Cisco::Logger.debug("  executing command:\n    #{command}") \
-      unless command.nil? || command.empty?
-    Cisco::Logger.debug("  with context:\n    #{context.join("\n    ")}") \
-      unless context.nil? || context.empty?
-    Cisco::Logger.debug("  to get value:     #{value}") \
-      unless value.nil?
-    # to be implemented by subclasses
   end
 
   private

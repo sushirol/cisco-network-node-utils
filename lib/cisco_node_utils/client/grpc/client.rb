@@ -51,7 +51,6 @@ class Cisco::Client::GRPC < Cisco::Client
     @timeout = 5
     begin
       base_msg = 'gRPC client creation failure: '
-      get(command: 'show clock')
     rescue Cisco::ClientError => e
       error 'initial connect failed: ' + e.to_s
       if e.message[/deadline exceeded/i]

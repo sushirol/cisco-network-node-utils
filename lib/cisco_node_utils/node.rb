@@ -26,10 +26,6 @@ module Cisco
   class Node
     @instance = nil
 
-    def cache_flush
-      @client.cache_flush
-    end
-
     attr_reader :client
 
     def self.instance(*args)
@@ -46,22 +42,6 @@ module Cisco
 
     def to_s
       client.to_s
-    end
-
-    def cache_enable?
-      @client.cache_enable?
-    end
-
-    def cache_enable=(enable)
-      @client.cache_enable = enable
-    end
-
-    def cache_auto?
-      @client.cache_auto?
-    end
-
-    def cache_auto=(enable)
-      @client.cache_auto = enable
     end
 
     def setyang(**kwargs)

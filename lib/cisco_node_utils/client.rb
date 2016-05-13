@@ -22,8 +22,7 @@ end
 require_relative 'client/client'
 
 # Try to load known extensions
-extensions = ['client/grpc',
-             ]
+extensions = ['client/grpc',]
 extensions.each do |ext|
   begin
     require_relative ext
