@@ -169,6 +169,69 @@ class Cisco::Client::GRPC < Cisco::Client
       raise Cisco::ClientError, e.details
     end
   end
+  
+  def getyang(data_format: :yangpathjson,
+              yang_path:    nil)
+    fail ArgumentError if yang_path.nil?
+    args = ConfigGetArgs.new(yangpathjson: yang_path)
+    debug "yang_path #{yang_path}"
+    send_yang_req(@config, 'get_config', args)
+  end
+
+  def setyang(data_format: :yangjson,
+              yang_path:    nil,
+              action:       nil)
+    fail ArgumentError if yang_path.nil?
+    args = ConfigArgs.new(yangjson: yang_path)
+    debug "action: #{action}  yang_path: #{yang_path}"
+    send_yang_req(@config, action, args)
+  end
+
+
+  def send_yang_req(stub, type, args)
+    debug "Sending '#{type}' request:"
+    if args.is_a?(ConfigGetArgs)
+      debug "  with yangpathjson: #{args.yangpathjson}"
+    elsif args.is_a?(ConfigArgs)
+      debug " with yangjson: #{args.yangjson}"
+    end
+
+    output = Cisco::Client.silence_warnings do
+      response = stub.send(type, args,
+                           timeout:  @timeout,
+                           username: @username,
+                           password: @password)
+      # gRPC server may split the response into multiples
+      response = response.is_a?(Enumerator) ? response.to_a : [response]
+      debug "Got responses: #{response.map(&:class).join(', ')}"
+      debug "response: #{response}"
+      # Check for errors first
+      handle_errors(args, response.select { |r| !r.errors.empty? })
+
+      # If we got here, no errors occurred
+      handle_response(args, response)
+    end
+    return output
+
+  rescue ::GRPC::BadStatus => e
+    warn "gRPC error '#{e.code}' during '#{type}' request: "
+    if args.is_a?(ConfigGetArgs)
+      debug "  with yangpathjson: #{args.yangpathjson}"
+    elsif args.is_a?(ConfigArgs)
+      debug " with yangjson: #{args.yangjson}"
+    end
+
+    warn "  '#{e.details}'"
+    case e.code
+    when ::GRPC::Core::StatusCodes::UNAVAILABLE
+      raise Cisco::ConnectionRefused, "Connection refused: #{e.details}"
+    when ::GRPC::Core::StatusCodes::UNAUTHENTICATED
+      raise Cisco::AuthenticationFailed, e.details
+    else
+      raise Cisco::ClientError, e.details
+    end
+  end
+
 
   def handle_response(args, replies)
     klass = replies[0].class
@@ -188,6 +251,12 @@ class Cisco::Client::GRPC < Cisco::Client
       output = replies.map(&:jsonoutput).join("\n---\n")
     when /CliConfigReply/
       # nothing to process
+      output = ''
+    when /ConfigGetReply/
+      replies.each { |r| debug "  yangjson:\n#{r.yangjson}" }
+      output = replies.map(&:yangjson).join('')
+    when /ConfigReply/
+      # nothing process
       output = ''
     else
       fail Cisco::ClientError, "unsupported reply class #{klass}"
