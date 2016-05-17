@@ -18,7 +18,7 @@
 # limitations under the License.
 
 require_relative 'ciscotest'
-#require_relative '../lib/cisco_node_utils/bgp'
+require_relative '../lib/cisco_node_utils/yang'
 
 # TestYang - Minitest for Yang class
 class TestYang < CiscoTestCase
@@ -28,6 +28,17 @@ class TestYang < CiscoTestCase
          {
             "vrf-name":"BLUE",
             "description":"Generic external traffic",
+            "create":[
+               null
+            ]
+         }
+      ]
+    }}'
+
+  RED_VRF = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+         {
+            "vrf-name":"RED",
             "create":[
                null
             ]
@@ -48,13 +59,9 @@ class TestYang < CiscoTestCase
     clear_vrfs
   end
 
-  def empty?(string)
-    return !string || string.empty?
-  end
-
   def clear_vrfs
     current_vrfs = node.get_yang(PATH_VRFS)
-    if !empty?(current_vrfs)
+    if !Yang.empty?(current_vrfs)
 #      puts "*** deleting configured VRFs: |#{current_vrfs}|"
       node.delete_yang(PATH_VRFS) # remove all vrfs
     else
@@ -73,6 +80,25 @@ class TestYang < CiscoTestCase
   def test_add_vrf
     node.merge_yang(BLUE_VRF)  # create a single VRF
     assert(node.get_yang(PATH_VRFS).match('BLUE'), "Did not find the BLUE vrf")
+  end
+
+  def test_merge_diff
+    # ensure we think that a merge is needed (in-sinc = false)
+    refute(Yang.insync_for_merge(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+
+    node.merge_yang(BLUE_VRF)  # create the blue VRF
+
+    # ensure we think that a merge is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_merge(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+
+    # ensure we think that the merge is needed (in-sinc = false)
+    refute(Yang.insync_for_merge(RED_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+
+    node.merge_yang(RED_VRF)  # create the red VRF
+
+    # ensure we think that a merge is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_merge(RED_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
 
 end
