@@ -206,6 +206,16 @@ module Cisco
       @client.get(**kwargs)
     end
 
+    # Send JSON YANG config to the device.
+    def setyang(**kwargs)
+      @client.setyang(**kwargs)
+    end
+
+    # Get JSON YANG config from the device.
+    def getyang(**kwargs)
+      @client.getyang(**kwargs)
+    end
+
     # @return [String] such as "Cisco Nexus Operating System (NX-OS) Software"
     def os
       o = config_get('show_version', 'header')
