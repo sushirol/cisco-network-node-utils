@@ -23,23 +23,11 @@ require_relative 'ciscotest'
 # TestYang - Minitest for Yang class
 class TestYang < CiscoTestCase
 
-  def setup
-    super
-  end
-
-  def teardown
-    super
-  end
-
   BLUE_VRF = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
       "vrf":[
          {
             "vrf-name":"BLUE",
             "description":"Generic external traffic",
-            "vpn-id":{
-               "vpn-oui":875,
-               "vpn-index":22
-            },
             "create":[
                null
             ]
@@ -47,15 +35,44 @@ class TestYang < CiscoTestCase
       ]
     }}'
 
-  NO_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]'
-  PATH_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]'
+  NO_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
+  PATH_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
+
+  def setup
+    super
+    clear_vrfs
+  end
+
+  def teardown
+    super
+    clear_vrfs
+  end
+
+  def empty?(string)
+    return !string || string.empty?
+  end
+
+  def clear_vrfs
+    current_vrfs = node.get_yang(PATH_VRFS)
+    if !empty?(current_vrfs)
+#      puts "*** deleting configured VRFs: |#{current_vrfs}|"
+      node.delete_yang(PATH_VRFS) # remove all vrfs
+    else
+#      puts "*** no VRFs current configured: |#{current_vrfs}|"
+    end
+  end
 
   def test_delete_vrfs
-    node.setyang(BLUE_VRF)  # ensure at least one VRF is there
-    assert(node.getyang(PATH_VRFS).match('BLUE'), "Did not find the BLUE vrf.")
+    node.merge_yang(BLUE_VRF)  # ensure at least one VRF is there
+    assert(node.get_yang(PATH_VRFS).match('BLUE'), "Did not find the BLUE vrf")
 
-    node.setyang(NO_VRFS)  # remove all vrfs
-    refute(node.getyang(PATH_VRFS).match('vrf-name'), "There are still vrfs configured.")
+    clear_vrfs
+    assert_equal("", node.get_yang(PATH_VRFS), "There are still vrfs configured")
+  end
+
+  def test_add_vrf
+    node.merge_yang(BLUE_VRF)  # create a single VRF
+    assert(node.get_yang(PATH_VRFS).match('BLUE'), "Did not find the BLUE vrf")
   end
 
 end
