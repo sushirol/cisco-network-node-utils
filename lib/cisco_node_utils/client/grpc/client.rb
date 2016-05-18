@@ -169,7 +169,7 @@ class Cisco::Client::GRPC < Cisco::Client
       raise Cisco::ClientError, e.details
     end
   end
-  
+
   def getyang(data_format: :yangpathjson,
               yang_path:    nil)
     fail ArgumentError if yang_path.nil?
@@ -309,8 +309,15 @@ class Cisco::Client::GRPC < Cisco::Client
 
   # Generate an error from a failed request
   def handle_text_error(args, msg)
+
+puts "======> handle_text_error args: #{args.inspect}, msg: |#{msg}|    "
     if /^Disallowed commands:/ =~ msg
       fail Cisco::RequestNotSupported, msg
+    elsif args.is_a?(ConfigGetArgs) || args.is_a?(ConfigArgs)
+      fail Cisco::YangError.new( # rubocop:disable Style/RaiseArgs
+        rejected_input: args.yangpathjson,
+        error:          msg,
+      )
     else
       fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
         rejected_input: args.cli,
@@ -346,7 +353,7 @@ class Cisco::Client::GRPC < Cisco::Client
     msg = msg['error'] unless msg.is_a?(Array)
     msg.each do |m|
       type = m['error-type']
-      message = m['error-message']
+      message = m['error-message'] || m['error-tag']
       if type == 'protocol' && message == 'Failed authentication'
         fail Cisco::AuthenticationFailed, message
       elsif type == 'application'
