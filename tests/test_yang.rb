@@ -46,6 +46,53 @@ class TestYang < CiscoTestCase
       ]
     }}'
 
+    BLUE_VRF_PROPERTIES1 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+        "vrf":[
+           {
+              "vrf-name":"BLUE",
+              "create":[
+                 null
+              ],
+              "vpn-id":{
+                "vpn-oui":0,
+                "vpn-index":0
+                }
+           }
+        ]
+      }}'
+
+  BLUE_VRF_PROPERTIES2 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+         {
+            "vrf-name":"BLUE",
+            "description":"Generic external traffic",
+            "create":[
+               null
+            ],
+            "vpn-id":{
+              "vpn-oui":0,
+              "vpn-index":0
+              }
+         }
+      ]
+    }}'
+
+    BLUE_VRF_PROPERTIES3 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+        "vrf":[
+           {
+              "vrf-name":"BLUE",
+              "description":"Generic ext traffic",
+              "create":[
+                 null
+              ],
+              "vpn-id":{
+                "vpn-oui":8,
+                "vpn-index":9
+                }
+           }
+        ]
+      }}'
+
   NO_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
   PATH_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
 
@@ -99,6 +146,18 @@ class TestYang < CiscoTestCase
 
     # ensure we think that a merge is NOT needed (in-sinc = true)
     assert(Yang.insync_for_merge(RED_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+  end
+
+  def test_merge_leaves
+    node.merge_yang(BLUE_VRF) # create blue vrf with description
+    node.merge_yang(BLUE_VRF_PROPERTIES1) # merge blue vrf with vpn id to blue vrf with description
+
+    # ensure that new leaves are merged with old.
+    assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES2, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+    # update description and vpn-id
+    node.merge_yang(BLUE_VRF_PROPERTIES3)
+    assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
 
 end
