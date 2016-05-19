@@ -104,7 +104,7 @@ module Cisco
     end
 
     def self.nil_array(elt)
-      elt.is_a?(Array) && elt.length == 1 && elt[0].nil?
+      elt.nil? || (elt.is_a?(Array) && elt.length == 1 && elt[0].nil?)
     end
 
     def self.sub_elt(op, target, run)
