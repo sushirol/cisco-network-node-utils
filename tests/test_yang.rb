@@ -46,20 +46,40 @@ class TestYang < CiscoTestCase
       ]
     }}'
 
-    BLUE_VRF_PROPERTIES1 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
-        "vrf":[
-           {
-              "vrf-name":"BLUE",
-              "create":[
-                 null
-              ],
-              "vpn-id":{
-                "vpn-oui":0,
-                "vpn-index":0
-                }
-           }
-        ]
-      }}'
+  GREEN_VRF = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+         {
+            "vrf-name":"GREEN",
+            "create": null
+         }
+      ]
+    }}'
+
+  BLUE_VRF_NO_PROPERTIES = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+         {
+            "vrf-name":"BLUE",
+            "create":[
+               null
+            ]
+         }
+      ]
+    }}'
+
+  BLUE_VRF_PROPERTIES1 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+         {
+            "vrf-name":"BLUE",
+            "create":[
+               null
+            ],
+            "vpn-id":{
+              "vpn-oui":0,
+              "vpn-index":0
+              }
+         }
+      ]
+    }}'
 
   BLUE_VRF_PROPERTIES2 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
       "vrf":[
@@ -146,6 +166,10 @@ class TestYang < CiscoTestCase
 
     # ensure we think that a merge is NOT needed (in-sinc = true)
     assert(Yang.insync_for_merge(RED_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+    node.merge_yang(GREEN_VRF) # create green VRF
+    # ensure we think that a merge is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_merge(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
 
   def test_merge_leaves
@@ -159,5 +183,6 @@ class TestYang < CiscoTestCase
     node.merge_yang(BLUE_VRF_PROPERTIES3)
     assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
+
 
 end
