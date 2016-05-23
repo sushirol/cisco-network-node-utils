@@ -213,6 +213,19 @@ class Cisco::Client
     # to be implemented by subclasses
   end
 
+  def getyang(data_format: :yangpathjson,
+              yang_path:    nil)
+    fail Cisco::RequestNotSupported
+    # to be implemented by subclasses
+  end
+
+  def setyang(data_format: :yangjson,
+              yang_path:    nil,
+              action:       nil)
+    fail Cisco::RequestNotSupported
+    # to be implemented by subclasses
+  end
+
   private
 
   # Set the list of data formats supported by this client.

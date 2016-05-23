@@ -149,6 +149,75 @@ class TestYang < CiscoTestCase
     assert(node.get_yang(PATH_VRFS).match('BLUE'), "Did not find the BLUE vrf")
   end
 
+  def test_merge_leaves
+    node.merge_yang(BLUE_VRF) # create blue vrf with description
+    node.merge_yang(BLUE_VRF_PROPERTIES1) # merge blue vrf with vpn id to blue vrf with description
+
+    # ensure that new leaves are merged with old.
+    assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES2, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+    # update description and vpn-id
+    node.merge_yang(BLUE_VRF_PROPERTIES3)
+    assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
+  end
+
+  def test_errors
+    # === test get_yang ===========
+
+    # lexical error: invalid char in json text
+    assert_raises(Cisco::YangError) { node.get_yang('aabbcc') }
+
+    # parse error: object key and value must be separated by a colon
+    assert_raises(Cisco::YangError) { node.get_yang('{"aabbcc"}') }
+
+    # unknown-namespace
+    assert_raises(Cisco::ClientError) { node.get_yang('{"aabbcc": "foo"}') }
+
+    # unknown-element
+    assert_raises(Cisco::ClientError) {
+      node.get_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
+    }
+
+    # parse error: premature EOF
+    assert_raises(Cisco::YangError) { node.get_yang('{') }
+
+    # parse error: invalid object key (must be a string)
+    assert_raises(Cisco::YangError) { node.get_yang('{: "foo"}') }
+
+
+    # === test merge_yang ===========
+
+    # Request is not wellformed
+    assert_raises(Cisco::ClientError) { node.merge_yang('aabbcc') }
+
+    # unknown-element
+    assert_raises(Cisco::ClientError) {
+      node.merge_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
+    }
+
+    # bad-element
+    assert_raises(Cisco::ClientError) {
+      node.merge_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": "foo"}')
+    }
+
+    # missing-element
+    assert_raises(Cisco::YangError) {
+      node.merge_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf":[{}]}}')
+    }
+
+
+    # === test replace_yang ===========
+
+    # unknown-namespace
+    assert_raises(Cisco::ClientError) {
+      node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
+    }
+
+    # for some reason replace_yang does not have the same error checking
+    # that merge_yang does, so this just fails quietly
+    node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": }')
+  end
+
   def test_merge_diff
     # ensure we think that a merge is needed (in-sinc = false)
     refute(Yang.insync_for_merge(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
@@ -171,18 +240,5 @@ class TestYang < CiscoTestCase
     # ensure we think that a merge is NOT needed (in-sinc = true)
     assert(Yang.insync_for_merge(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
-
-  def test_merge_leaves
-    node.merge_yang(BLUE_VRF) # create blue vrf with description
-    node.merge_yang(BLUE_VRF_PROPERTIES1) # merge blue vrf with vpn id to blue vrf with description
-
-    # ensure that new leaves are merged with old.
-    assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES2, node.get_yang(PATH_VRFS)), "Expected in-sync")
-
-    # update description and vpn-id
-    node.merge_yang(BLUE_VRF_PROPERTIES3)
-    assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
-  end
-
 
 end
