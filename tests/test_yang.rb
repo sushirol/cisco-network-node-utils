@@ -55,6 +55,20 @@ class TestYang < CiscoTestCase
       ]
     }}'
 
+  BLUE_GREEN_VRF = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+         {
+            "vrf-name":"BLUE",
+            "create":[null],
+            "description":"Generic external traffic"
+         },
+         {
+            "vrf-name":"GREEN",
+            "create":[null]
+         }
+      ]
+  }}'
+
   BLUE_VRF_NO_PROPERTIES = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
       "vrf":[
          {
@@ -147,6 +161,10 @@ class TestYang < CiscoTestCase
   def test_add_vrf
     node.merge_yang(BLUE_VRF)  # create a single VRF
     assert(node.get_yang(PATH_VRFS).match('BLUE'), "Did not find the BLUE vrf")
+
+    node.replace_yang(GREEN_VRF)  # create a single VRF
+    assert(node.get_yang(PATH_VRFS).match('GREEN'), "Did not find the BLUE vrf")
+    refute(node.get_yang(PATH_VRFS).match('BLUE'), "Found the BLUE vrf")
   end
 
   def test_merge_diff
@@ -172,6 +190,38 @@ class TestYang < CiscoTestCase
     assert(Yang.insync_for_merge(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
 
+  def test_replace_diff
+    # ensure we think that a merge is needed (in-sinc = false)
+    refute(Yang.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+
+    node.replace_yang(BLUE_VRF)  # create the blue VRF
+    # ensure we think that a replace is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+    node.replace_yang(RED_VRF)  # create the red VRF
+    # ensure we think that a replace is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_replace(RED_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+    node.replace_yang(GREEN_VRF) # create green VRF
+    # ensure we think that a replace is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_replace(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+    node.merge_yang(BLUE_VRF)
+
+    # ensure we think that a replace is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_replace(BLUE_GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in sync")
+    # ensure we think that a replace is needed (in-sinc = true)
+    refute(Yang.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in sync")
+    refute(Yang.insync_for_replace(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected not in sync")
+
+    node.replace_yang(BLUE_VRF)
+    # ensure we think that a replace is NOT needed (in-sinc = true)
+    assert(Yang.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    # ensure we think that a replace is needed (in-sinc = true)
+    refute(Yang.insync_for_replace(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+    refute(Yang.insync_for_replace(BLUE_GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+  end
+
   def test_merge_leaves
     node.merge_yang(BLUE_VRF) # create blue vrf with description
     node.merge_yang(BLUE_VRF_PROPERTIES1) # merge blue vrf with vpn id to blue vrf with description
@@ -184,5 +234,16 @@ class TestYang < CiscoTestCase
     assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
   end
 
+def test_replace_leaves
+  node.replace_yang(BLUE_VRF) # create blue vrf with description
+  node.replace_yang(BLUE_VRF_PROPERTIES1) # replace blue vrf (description) by blue vrf (vpn-id)
+
+  # ensure that new properties are replaced by old.
+  assert(Yang.insync_for_replace(BLUE_VRF_PROPERTIES1, node.get_yang(PATH_VRFS)), "Expected in-sync")
+
+  # replace description and vpn-id
+  node.replace_yang(BLUE_VRF_PROPERTIES3)
+  assert(Yang.insync_for_replace(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
+end
 
 end

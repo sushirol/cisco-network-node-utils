@@ -121,7 +121,11 @@ module Cisco
       n = target.length
       loop = lambda {|i|
         if i == n
-          true
+          if op == :replace
+            run.length == target.length
+          else
+            true
+          end
         else
           target_elt = target[i]
           run_elt = run.find do |run_elt|
@@ -137,33 +141,19 @@ module Cisco
       loop.call(0)
     end
 
-    def self.hash_equiv?(op, target, _run)
-      # NB: Cloning input hash table, elements are
-      # removed as they are matched in order to enable
-      # an excess folliage check when we hit the end of the
-      # keys.  We don't want to actually side effect the real
-      # hashtable, so clone it
-      if op == :replace
-        run = _run.clone
-      else
-        run = _run
-      end
+    def self.hash_equiv?(op, target, run)
       keys = target.keys
       n = keys.length
       loop = lambda {|i|
         if i == n
           if op == :replace
-            run.keys.length == 0
+            run.keys.length == target.keys.length
           else
             true
           end
         else
           k = keys[i]
-          if op == :replace
-            run_v = run.delete(k)
-          else
-            run_v = run[k]
-          end
+          run_v = run[k]
           target_v = target[k]
           if run_v.nil? && !self.nil_array(target_v)
             false
