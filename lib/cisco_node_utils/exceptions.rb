@@ -106,6 +106,7 @@ module Cisco
         else
           message = "The config '#{rejected_input}' was rejected "
         end
+
         message += "with error:\n#{error}"
       end
       super(message,

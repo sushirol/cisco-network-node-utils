@@ -354,6 +354,7 @@ puts "======> handle_text_error args: #{args.inspect}, msg: |#{msg}|    "
     msg.each do |m|
       type = m['error-type']
       message = m['error-message'] || m['error-tag']
+      message += ': ' + m['error-path'] if m['error-path']
       if type == 'protocol' && message == 'Failed authentication'
         fail Cisco::AuthenticationFailed, message
       elsif type == 'application'
@@ -369,16 +370,22 @@ puts "======> handle_text_error args: #{args.inspect}, msg: |#{msg}|    "
         # foo
         # bar
         #
-        match = /\n\n(.*)\n\n\Z/m.match(message)
-        if match.nil?
-          rejected = '(unknown, see error message)'
+        if m['error-path']
+          fail Cisco::YangError.new( # rubocop:disable Style/RaiseArgs
+            message
+          )
         else
-          rejected = match[1].split("\n")
+          match = /\n\n(.*)\n\n\Z/m.match(message)
+          if match.nil?
+            rejected = '(unknown, see error message)'
+          else
+            rejected = match[1].split("\n")
+          end
+          fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+            rejected_input: rejected,
+            clierror:       message,
+          )
         end
-        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
-          rejected_input: rejected,
-          clierror:       message,
-        )
       else
         fail Cisco::ClientError, message
       end
