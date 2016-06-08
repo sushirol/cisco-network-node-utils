@@ -56,19 +56,37 @@ module Cisco
         end
         out_hash[node.name] = node_hash
       end
+      if node.attributes['operation'] == 'delete'
+        if out_hash[node.name].is_a? Hash
+          out_hash[node.name][:operation] = :delete
+        elsif out_hash[node.name].is_a? Array
+          out_hash[node.name] << { :operation => :delete }
+        else
+          raise 'expected Hash or Array, but got #{out_hash[node.name].class}'
+        end
+      end
+      if !node.namespaces.empty?
+        if out_hash[node.name].is_a? Hash
+          out_hash[node.name][:namespaces] = node.namespaces
+        elsif out_hash[node.name].is_a? Array
+          out_hash[node.name] << { :namespaces => node.namespaces }
+        else
+          raise 'expected Hash or Array, but got #{out_hash[node.name].class}'
+        end
+      end
       return out_hash
     end
 
     def self.insync_for_merge(target, current)
-      target_doc = self.empty?(target) ? {} : convert_xml(Document.new(target, { :ignore_whitespace_nodes => :all }))
-      current_doc = self.empty?(current) ? {} : convert_xml(Document.new(current, { :ignore_whitespace_nodes => :all }))
+      target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
+      current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
 
       !needs_something?(:merge, target_doc, current_doc)
     end
 
     def self.insync_for_replace(target, current)
-      target_doc = self.empty?(target) ? {} : convert_xml(Document.new(target, { :ignore_whitespace_nodes => :all }))
-      current_doc = self.empty?(current) ? {} : convert_xml(Document.new(current, { :ignore_whitespace_nodes => :all }))
+      target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
+      current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
 
       !Yang::needs_something?(:replace, target_doc, current_doc)
     end
