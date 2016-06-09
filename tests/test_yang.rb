@@ -111,24 +111,234 @@ class TestYang < CiscoTestCase
       ]
     }}'
 
-    BLUE_VRF_PROPERTIES3 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
-        "vrf":[
-           {
-              "vrf-name":"BLUE",
-              "description":"Generic ext traffic",
-              "create":[
-                 null
-              ],
-              "vpn-id":{
-                "vpn-oui":8,
-                "vpn-index":9
-                }
-           }
+  BLUE_VRF_PROPERTIES3 = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs":{
+      "vrf":[
+          {
+            "vrf-name":"BLUE",
+            "description":"Generic ext traffic",
+            "create":[
+                null
+            ],
+            "vpn-id":{
+              "vpn-oui":8,
+              "vpn-index":9
+              }
+          }
+      ]
+    }}'
+
+  GE0_SRLG = '{"Cisco-IOS-XR-infra-rsi-cfg:srlg": {
+    "interfaces": {
+    "interface": [
+      {
+      "interface-name": "GigabitEthernet0/0/0/0",
+      "enable": [
+        null
+      ],
+      "values": {
+        "value": [
+        {
+          "srlg-index": 10,
+          "srlg-value": 100,
+          "srlg-priority": "default"
+        },
+        {
+          "srlg-index": 20,
+          "srlg-value": 200,
+          "srlg-priority": "default"
+        }
         ]
-      }}'
+      },
+      "interface-group": {
+        "enable": [
+        null
+        ],
+        "group-names": {
+        "group-name": [
+          {
+          "group-name-index": 1,
+          "group-name": "2",
+          "srlg-priority": "default"
+          }
+        ]
+        }
+      }
+      }
+    ]
+    },
+    "enable": [
+    null
+    ]
+    }
+  }'
+
+  GE0_NEW_SRLG = '{"Cisco-IOS-XR-infra-rsi-cfg:srlg": {
+    "interfaces": {
+    "interface": [
+      {
+      "interface-name": "GigabitEthernet0/0/0/0",
+      "enable": [
+        null
+      ],
+      "values": {
+        "value": [
+        {
+          "srlg-index": 90,
+          "srlg-value": 900,
+          "srlg-priority": "default"
+        },
+        {
+          "srlg-index": 20,
+          "srlg-value": 200,
+          "srlg-priority": "default"
+        }
+        ]
+      },
+      "interface-group": {
+        "enable": [
+        null
+        ],
+        "group-names": {
+        "group-name": [
+          {
+          "group-name-index": 1,
+          "group-name": "9",
+          "srlg-priority": "default"
+          }
+        ]
+        }
+      }
+      }
+    ]
+    },
+    "enable": [
+    null
+    ]
+    }
+  }'
+
+  GE1_SRLG = '{"Cisco-IOS-XR-infra-rsi-cfg:srlg": {
+    "interfaces": {
+    "interface": [
+      {
+      "interface-name": "GigabitEthernet0/0/0/1",
+      "enable": [
+        null
+      ]
+      }
+    ]
+    },
+    "enable": [
+    null
+    ]
+    }
+  }'
+
+  GE0_GE1_SRLG = '{"Cisco-IOS-XR-infra-rsi-cfg:srlg": {
+    "interfaces": {
+    "interface": [
+      {
+      "interface-name": "GigabitEthernet0/0/0/0",
+      "enable": [
+        null
+      ],
+      "values": {
+        "value": [
+        {
+          "srlg-index": 10,
+          "srlg-value": 100,
+          "srlg-priority": "default"
+        },
+        {
+          "srlg-index": 20,
+          "srlg-value": 200,
+          "srlg-priority": "default"
+        }
+        ]
+      },
+      "interface-group": {
+        "enable": [
+        null
+        ],
+        "group-names": {
+        "group-name": [
+          {
+          "group-name-index": 1,
+          "group-name": "2",
+          "srlg-priority": "default"
+          }
+        ]
+        }
+      }
+      },
+      {
+      "interface-name": "GigabitEthernet0/0/0/1",
+      "enable": [
+        null
+      ]
+      }
+    ]
+    },
+    "enable": [
+    null
+    ]
+  }
+  }'
+
+  GE0_GE1_NEW_SRLG = '{"Cisco-IOS-XR-infra-rsi-cfg:srlg": {
+    "interfaces": {
+    "interface": [
+      {
+      "interface-name": "GigabitEthernet0/0/0/0",
+      "enable": [
+        null
+      ],
+      "values": {
+        "value": [
+        {
+          "srlg-index": 90,
+          "srlg-value": 900,
+          "srlg-priority": "default"
+        },
+        {
+          "srlg-index": 20,
+          "srlg-value": 200,
+          "srlg-priority": "default"
+        }
+        ]
+      },
+      "interface-group": {
+        "enable": [
+        null
+        ],
+        "group-names": {
+        "group-name": [
+          {
+          "group-name-index": 1,
+          "group-name": "9",
+          "srlg-priority": "default"
+          }
+        ]
+        }
+      }
+      },
+      {
+      "interface-name": "GigabitEthernet0/0/0/1",
+      "enable": [
+        null
+      ]
+      }
+    ]
+    },
+    "enable": [
+    null
+    ]
+  }
+  }'
 
   NO_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
   PATH_VRFS = '{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": [null]}'
+  PATH_SRLG = '{"Cisco-IOS-XR-infra-rsi-cfg:srlg": [null]}'
 
   def setup
     super
@@ -147,6 +357,13 @@ class TestYang < CiscoTestCase
       node.delete_yang(PATH_VRFS) # remove all vrfs
     else
 #      puts "*** no VRFs current configured: |#{current_vrfs}|"
+    end
+  end
+
+  def clear_srlg
+    current_srlg = node.get_yang(PATH_SRLG)
+    if !Yang.empty?(current_srlg)
+      node.delete_yang(PATH_SRLG)
     end
   end
 
@@ -177,6 +394,23 @@ class TestYang < CiscoTestCase
     # update description and vpn-id
     node.merge_yang(BLUE_VRF_PROPERTIES3)
     assert(Yang.insync_for_merge(BLUE_VRF_PROPERTIES3, node.get_yang(PATH_VRFS)), "Expected in-sync")
+  end
+
+  def test_merge_srlg
+    clear_srlg
+    node.merge_yang(GE1_SRLG)
+    assert(Yang.insync_for_merge(GE1_SRLG, node.get_yang(PATH_SRLG)), "Expected in-sync")
+
+    node.merge_yang(GE0_SRLG)
+    assert(Yang.insync_for_merge(GE0_SRLG, node.get_yang(PATH_SRLG)), "Expected in-sync")
+    assert(Yang.insync_for_merge(GE0_GE1_SRLG, node.get_yang(PATH_SRLG)), "Expected in-sync")
+
+    node.merge_yang(GE0_NEW_SRLG)
+    assert(Yang.insync_for_merge(GE0_NEW_SRLG, node.get_yang(PATH_SRLG)), "Expected in-sync")
+    assert(Yang.insync_for_merge(GE0_GE1_NEW_SRLG, node.get_yang(PATH_SRLG)), "Expected in-sync")
+    refute(Yang.insync_for_merge(GE0_SRLG, node.get_yang(PATH_SRLG)), "Expected not in-sync")
+    refute(Yang.insync_for_merge(GE0_GE1_SRLG, node.get_yang(PATH_SRLG)), "Expected not in-sync")
+    clear_srlg
   end
 
   def test_errors
