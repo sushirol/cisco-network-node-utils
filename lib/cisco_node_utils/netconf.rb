@@ -16,9 +16,9 @@
 
 require_relative 'yang'
 
-require 'libxml'
+require "rexml/document"
 
-module Cisco include LibXML
+module Cisco
 
   class Netconf
 
@@ -27,16 +27,16 @@ module Cisco include LibXML
     end
 
     def self.convert_xml(xml)
-      raise "unexpected #{xml} is not an XML document" unless xml.is_a?(LibXML::XML::Document)
+      raise "unexpected #{xml} is not an XML document" unless xml.is_a?(REXML::Document)
       return convert_xml_node(xml.root)
     end
 
     def self.convert_xml_node(node)
-      raise "unexpected #{node} is not an XML node" unless node.is_a?(LibXML::XML::Node)
+      raise "unexpected #{node} is not an XML node" unless node.is_a?(REXML::Element)
       out_hash = {}
-      children = node.children.select { |child| !child.empty? }
+      children = node.to_a
       child_names = children.map { |child| child.name }
-      if node.empty? || children.length == 0
+      if !node.has_elements?
         out_hash[node.name] = [nil]
       elsif child_names.all? { |name| name + 's' == node.name }
         name = child_names[0]
@@ -45,9 +45,9 @@ module Cisco include LibXML
       else
         node_hash = {}
         children.each do |child|
-          grandchildren = child.children.select { |gc| !gc.empty? }
-          if grandchildren.length == 1 && grandchildren.first.text?
-            text = grandchildren.first.content.strip
+          grandchildren = child.to_a
+          if grandchildren.length == 1 && child.has_text?
+            text = grandchildren[0].value.strip
             # convert to a number if that's what the text seems to represent
             node_hash[child.name] = /\A[-+]?\d+\z/.match(text) ? text.to_i : text
           else
@@ -56,19 +56,37 @@ module Cisco include LibXML
         end
         out_hash[node.name] = node_hash
       end
+      if node.attributes['operation'] == 'delete'
+        if out_hash[node.name].is_a? Hash
+          out_hash[node.name][:operation] = :delete
+        elsif out_hash[node.name].is_a? Array
+          out_hash[node.name] << { :operation => :delete }
+        else
+          raise 'expected Hash or Array, but got #{out_hash[node.name].class}'
+        end
+      end
+      if !node.namespaces.empty?
+        if out_hash[node.name].is_a? Hash
+          out_hash[node.name][:namespaces] = node.namespaces
+        elsif out_hash[node.name].is_a? Array
+          out_hash[node.name] << { :namespaces => node.namespaces }
+        else
+          raise 'expected Hash or Array, but got #{out_hash[node.name].class}'
+        end
+      end
       return out_hash
     end
 
     def self.insync_for_merge(target, current)
-      target_doc = self.empty?(target) ? {} : convert_xml(LibXML::XML::Document.string(target))
-      current_doc = self.empty?(current) ? {} : convert_xml(LibXML::XML::Document.string(current))
+      target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
+      current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
 
       !needs_something?(:merge, target_doc, current_doc)
     end
 
     def self.insync_for_replace(target, current)
-      target_doc = self.empty?(target) ? {} : convert_xml(LibXML::XML::Document.string(target))
-      current_doc = self.empty?(current) ? {} : convert_xml(LibXML::XML::Document.string(current))
+      target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
+      current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
 
       !Yang::needs_something?(:replace, target_doc, current_doc)
     end
