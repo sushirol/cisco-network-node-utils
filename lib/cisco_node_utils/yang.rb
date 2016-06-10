@@ -1,4 +1,4 @@
-# June 2015, Michael G Wiebe
+# June 2016, Charles Burkett
 #
 # Copyright (c) 2015-2016 Cisco and/or its affiliates.
 #
@@ -14,38 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#require_relative 'node_util'
-#require_relative 'feature'
-#require_relative 'logger'
-
 require 'json'
 
 module Cisco
 
   class Yang
 
+    # Is the specified yang string empty?
     def self.empty?(yang)
       return !yang || yang.empty?
     end
 
     # Given a current and target YANG configuration, returns true if
-    # the configuration are in-sync, relative to a "merge_config" action
+    # the configurations are in-sync, relative to a "merge_config" action
     def self.insync_for_merge(target, current)
       target_hash = self.empty?(target) ? {} : JSON.parse(target)
       current_hash = self.empty?(current) ? {} : JSON.parse(current)
 
       !needs_something?(:merge, target_hash, current_hash)
-
-=begin
-      insync = !needs_something?(:merge, target_hash, current_hash)
-
-      puts ""
-      puts "=====> current: #{current_hash.to_json}"
-      puts "=====> target : #{target_hash.to_json}"
-      puts "=====> insync : #{insync}"
-
-      insync
-=end
     end
 
     # Given a current and target YANG configuration, returns true if

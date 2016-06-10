@@ -170,25 +170,38 @@ class Cisco::Client::GRPC < Cisco::Client
     end
   end
 
-  def getyang(data_format: :yangpathjson,
-              yang_path:    nil)
+  # Retrieve JSON YANG config from the device for the specified path.
+  # @param yang [String] The node path from which to retrieve configuration
+  def get_yang(yang_path)
     fail ArgumentError if yang_path.nil?
-    args = ConfigGetArgs.new(yangpathjson: yang_path)
-    debug "yang_path #{yang_path}"
-    send_yang_req(@config, 'get_config', args)
+    yang_req(@config, 'get_config', ConfigGetArgs.new(yangpathjson: yang_path))
   end
 
-  def setyang(data_format: :yangjson,
-              yang_path:    nil,
-              action:       nil)
-    fail ArgumentError if yang_path.nil?
-    args = ConfigArgs.new(yangjson: yang_path)
-    debug "action: #{action}  yang_path: #{yang_path}"
-    send_yang_req(@config, action, args)
+  # Merge the specified JSON YANG config with the running config
+  # on the device.
+  # @param yang [String] The desired YANG configuration
+  def merge_yang(yang)
+    fail ArgumentError if yang.nil?
+    yang_req(@config, "merge_config", ConfigArgs.new(yangjson: yang))
   end
 
+  # Replace the running config on the device with the specified
+  # JSON YANG config.
+  # @param yang [String] The desired YANG configuration
+  def replace_yang(yang)
+    fail ArgumentError if yang.nil?
+    yang_req(@config, "replace_config", ConfigArgs.new(yangjson: yang))
+  end
 
-  def send_yang_req(stub, type, args)
+  # Delete the specified JSON YANG config from the device.
+  # @param yang [String] The YANG configuration to delete.
+  def delete_yang(yang)
+    fail ArgumentError if yang.nil?
+    yang_req(@config, "delete_config", ConfigArgs.new(yangjson: yang))
+  end
+
+  # Send a YANG request via gRPC
+  def yang_req(stub, type, args)
     debug "Sending '#{type}' request:"
     if args.is_a?(ConfigGetArgs)
       debug "  with yangpathjson: #{args.yangpathjson}"
@@ -232,7 +245,6 @@ class Cisco::Client::GRPC < Cisco::Client
     end
   end
 
-
   def handle_response(args, replies)
     klass = replies[0].class
     unless replies.all? { |r| r.class == klass }
@@ -256,7 +268,7 @@ class Cisco::Client::GRPC < Cisco::Client
       replies.each { |r| debug "  yangjson:\n#{r.yangjson}" }
       output = replies.map(&:yangjson).join('')
     when /ConfigReply/
-      # nothing process
+      # nothing to process
       output = ''
     else
       fail Cisco::ClientError, "unsupported reply class #{klass}"
@@ -309,8 +321,6 @@ class Cisco::Client::GRPC < Cisco::Client
 
   # Generate an error from a failed request
   def handle_text_error(args, msg)
-
-puts "======> handle_text_error args: #{args.inspect}, msg: |#{msg}|    "
     if /^Disallowed commands:/ =~ msg
       fail Cisco::RequestNotSupported, msg
     elsif args.is_a?(ConfigGetArgs) || args.is_a?(ConfigArgs)

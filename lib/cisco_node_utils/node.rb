@@ -208,22 +208,22 @@ module Cisco
 
     # Merge the specified JSON YANG config with the running config on the device.
     def merge_yang(yang)
-      @client.setyang(yang_path: yang, action: 'merge_config')
+      @client.merge_yang(yang)
     end
 
     # Replace the running config on the device with the specified JSON YANG config.
     def replace_yang(yang)
-      @client.setyang(yang_path: yang, action: 'replace_config')
+      @client.replace_yang(yang)
     end
 
     # Delete the specified JSON YANG config from the device.
     def delete_yang(yang)
-      @client.setyang(yang_path: yang, action: 'delete_config')
+      @client.delete_yang(yang)
     end
 
     # Retrieve JSON YANG config from the device for the specified path.
     def get_yang(yang_path)
-      @client.getyang(yang_path: yang_path)
+      @client.get_yang(yang_path)
     end
 
     # @return [String] such as "Cisco Nexus Operating System (NX-OS) Software"
