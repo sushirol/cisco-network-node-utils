@@ -18,6 +18,8 @@ require_relative 'yang'
 
 require "rexml/document"
 
+require 'pry'
+
 module Cisco
 
   class Netconf
@@ -35,34 +37,22 @@ module Cisco
       raise "unexpected #{node} is not an XML node" unless node.is_a?(REXML::Element)
       out_hash = {}
       children = node.to_a
-      child_names = children.map { |child| child.name }
-      if !node.has_elements?
+#      child_names = children.map { |child| child.name }
+      if children.length == 1 && node.has_text?
+        out_hash[node.name] = [children[0].value.strip]
+      elsif !node.has_elements?
         out_hash[node.name] = [nil]
-      elsif child_names.all? { |name| name + 's' == node.name }
-        name = child_names[0]
-        out_array = children.map { |child| convert_xml_node(child)[name] }
-        out_hash[node.name] = {name => out_array}
       else
-        node_hash = {}
-        children.each do |child|
-          grandchildren = child.to_a
-          if grandchildren.length == 1 && child.has_text?
-            text = grandchildren[0].value.strip
-            # convert to a number if that's what the text seems to represent
-            node_hash[child.name] = /\A[-+]?\d+\z/.match(text) ? text.to_i : text
-          else
-            node_hash = convert_xml_node(child).merge(node_hash)
-          end
-        end
-        out_hash[node.name] = node_hash
+        out_hash[node.name] = children.map { |child| convert_xml_node(child) }
       end
+#      binding.pry
       if node.attributes['operation'] == 'delete'
         if out_hash[node.name].is_a? Hash
           out_hash[node.name][:operation] = :delete
         elsif out_hash[node.name].is_a? Array
-          out_hash[node.name] << { :operation => :delete }
+          out_hash[node.name] << :delete
         else
-          raise 'expected Hash or Array, but got #{out_hash[node.name].class}'
+          raise "expected Hash or Array, but got #{out_hash[node.name].class}"
         end
       end
       if !node.namespaces.empty?
@@ -71,7 +61,7 @@ module Cisco
         elsif out_hash[node.name].is_a? Array
           out_hash[node.name] << { :namespaces => node.namespaces }
         else
-          raise 'expected Hash or Array, but got #{out_hash[node.name].class}'
+          raise "expected Hash or Array, but got #{out_hash[node.name].class}"
         end
       end
       return out_hash
@@ -81,7 +71,7 @@ module Cisco
       target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
       current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
 
-      !needs_something?(:merge, target_doc, current_doc)
+      !Yang::needs_something?(:merge, target_doc, current_doc)
     end
 
     def self.insync_for_replace(target, current)
