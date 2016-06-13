@@ -18,8 +18,6 @@ require_relative 'yang'
 
 require "rexml/document"
 
-require 'pry'
-
 module Cisco
 
   class Netconf
@@ -45,7 +43,6 @@ module Cisco
       else
         out_hash[node.name] = children.map { |child| convert_xml_node(child) }
       end
-#      binding.pry
       if node.attributes['operation'] == 'delete'
         if out_hash[node.name].is_a? Hash
           out_hash[node.name][:operation] = :delete
