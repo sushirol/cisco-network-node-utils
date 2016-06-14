@@ -105,22 +105,38 @@ module Cisco
 
     def self.array_equiv?(op, target, run)
       n = target.length
+      delete = false
       loop = lambda {|i|
         if i == n
           if op == :replace
-            run.length == target.length
+            # NB: Not sure if this is correct
+            if delete
+              run.length == (target.length - 1)
+            else
+              run.length == target.length
+            end
           else
+            # NB: Will need to insert logic around delete here
             true
           end
         else
           target_elt = target[i]
-          run_elt = run.find do |run_elt|
-            self.sub_elt(op, target_elt, run_elt)
-          end
-          if run_elt.nil? && !nil_array(target_elt)
-            target_elt.nil?
-          else
+          # Detect and note if our target has a delete tag.  Run shall never have a
+          # delete tag (it comes from the host)
+          if :delete == target_elt
+            delete = true
             loop.call(i + 1)
+          else
+            run_elt = run.find { |run_elt|
+              self.sub_elt(op, target_elt, run_elt)
+            }
+            
+            if run_elt.nil? && !nil_array(target_elt)
+              # Add additional delete logic here
+              target_elt.nil?
+            else
+              loop.call(i + 1)
+            end
           end
         end
       }
