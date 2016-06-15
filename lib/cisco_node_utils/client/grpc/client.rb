@@ -36,6 +36,7 @@ class Cisco::Client::GRPC < Cisco::Client
     # Defaults for gRPC:
     kwargs[:host] ||= '127.0.0.1'
     kwargs[:port] ||= 57_400
+    puts "GRPC initiatlize"
     # rubocop:disable Style/HashSyntax
     super(data_formats: [:cli],
           platform:     :ios_xr,

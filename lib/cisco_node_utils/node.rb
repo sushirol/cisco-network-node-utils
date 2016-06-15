@@ -226,6 +226,14 @@ module Cisco
       @client.get_yang(yang_path)
     end
 
+    def get_xml(xml_path)
+      @client.get_xml(xml_path)
+    end
+
+    def set_xml(xml_path)
+      @client.set_xml(xml_path)
+    end
+
     # @return [String] such as "Cisco Nexus Operating System (NX-OS) Software"
     def os
       o = config_get('show_version', 'header')

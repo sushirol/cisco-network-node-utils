@@ -42,6 +42,7 @@ class Cisco::Client
   def initialize(data_formats: [],
                  platform:     nil,
                  **kwargs)
+    puts "--------------------INITIALIZE"
     if self.class == Cisco::Client
       fail NotImplementedError, 'Cisco::Client is an abstract class. ' \
         "Instantiate one of #{@@clients} or use Cisco::Client.create() instead"
@@ -53,6 +54,7 @@ class Cisco::Client
     @username = kwargs[:username]
     @password = kwargs[:password]
     self.data_formats = data_formats
+    puts "========== #{platform}"
     self.platform = platform
     @cache_enable = true
     @cache_auto = true

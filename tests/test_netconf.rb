@@ -18,14 +18,14 @@
 
 require_relative 'basetest'
 
-# Test case for Cisco::Client::GRPC::Client class
-class TestGRPC < TestCase
+# Test case for Cisco::Client::NETCONF::Client class
+class TestNetconf < TestCase
   @@client = nil # rubocop:disable Style/ClassVars
 
   def self.runnable_methods
-    # If we're pointed to an NXAPI node (as evidenced by lack of a port num)
+    # If we're pointed to an Netconf node (as evidenced by a port num 830)
     # then these tests don't apply
-    return [:all_skipped] unless Cisco::Environment.environment[:port]
+    return [:all_skipped] unless (Cisco::Environment.environment[:port] == 830)
     puts Cisco::Environment.environment
     super
   end
@@ -36,7 +36,7 @@ class TestGRPC < TestCase
 
   def client
     unless @@client
-      client = Cisco::Client::GRPC.new(Cisco::Environment.environment)
+      client = Cisco::Client::NETCONF.new(Cisco::Environment.environment)
       client.cache_enable = true
       client.cache_auto = true
       @@client = client # rubocop:disable Style/ClassVars
@@ -46,9 +46,8 @@ class TestGRPC < TestCase
 
   def test_auth_failure
     env = Cisco::Environment.environment.merge(password: 'wrong password')
-    #Cisco::Client::GRPC.new(**env)
     e = assert_raises Cisco::AuthenticationFailed do
-      Cisco::Client::GRPC.new(**env)
+      Cisco::Client::NETCONF.new(**env)
     end
     assert_equal('gRPC client creation failure: Failed authentication',
                  e.message)
@@ -58,14 +57,14 @@ class TestGRPC < TestCase
     # Failure #1: connecting to a port that's listening for a non-gRPC protocol
     env = Cisco::Environment.environment.merge(port: 23)
     e = assert_raises Cisco::ConnectionRefused do
-      Cisco::Client::GRPC.new(**env)
+      Cisco::Client::NETCONF.new(**env)
     end
     assert_equal('gRPC client creation failure: Connection refused: ',
                  e.message)
     # Failure #2: Connecting to a port that's not listening at all
     env = Cisco::Environment.environment.merge(port: 0)
     e = assert_raises Cisco::ConnectionRefused do
-      Cisco::Client::GRPC.new(**env)
+      Cisco::Client::NETCONF.new(**env)
     end
     assert_equal('gRPC client creation failure: ' \
                  'timed out during initial connection: Deadline Exceeded',
@@ -160,7 +159,7 @@ int gi0/0/0/0 bark bark
 
   def test_smart_create
     autoclient = Cisco::Client.create
-    assert_equal(Cisco::Client::GRPC, autoclient.class)
+    assert_equal(Cisco::Client::NETCONF, autoclient.class)
     assert(autoclient.supports?(:cli))
     refute(autoclient.supports?(:nxapi_structured))
     assert_equal(:ios_xr, autoclient.platform)
