@@ -17,6 +17,7 @@ module Netconf
       ssh_args[:password] ||= @args[:password]
       ssh_args[:passphrase] = @args[:passphrase] || nil
       ssh_args[:port] = @args[:port]
+      ssh_args[:number_of_password_prompts] = 0
       
       begin
         @connection = Net::SSH.start(@args[:target], @args[:username], ssh_args)
@@ -154,7 +155,7 @@ module Netconf
   class ParseException < StandardError
   end
   
-  class SSHUninitialized < StandardError
+  class SSHNotConnected < StandardError
   end
   
   class Client
@@ -162,14 +163,20 @@ module Netconf
     
     class RpcResponse
       private
+
       def initialize (rpc_reply)
-        @errors = Array.new
-        @doc = REXML::Document.new(rpc_reply, {:ignore_whitespace_nodes => :all})
-        @doc.elements.each("rpc-reply/rpc-error") {|e|
-          ht = Hash.new
-          e.children.each {|ec| ht[ec.name] = ec.text}
-          @errors << ht
-        }
+        if rpc_reply.is_a?(String)
+          @errors = Array.new
+          @doc = REXML::Document.new(rpc_reply, ignore_whitespace_nodes: :all)
+          @doc.elements.each("rpc-reply/rpc-error") do |e|
+            ht = Hash.new
+            e.children.each { |ec| ht[ec.name] = ec.text }
+            @errors << ht
+          end
+        else
+          @errors = Array.new
+          @transport_errors = rpc_reply
+        end
       end
       
       public
@@ -188,15 +195,20 @@ module Netconf
     
     class GetConfigResponse < RpcResponse
       private
+
       def initialize (rpc_reply)
         super(rpc_reply)
-        @config = Array.new
-        formatter = REXML::Formatters::Pretty.new()
-        @doc.elements.each("rpc-reply/data/*") {|e|
-          o = StringIO.new
-          formatter.write(e, o)
-          @config << o.string
-        }
+        if rpc_reply.is_a?(String)
+          @config = Array.new
+          formatter = REXML::Formatters::Pretty.new()
+          @doc.elements.each("rpc-reply/data/*") do |e|
+            o = StringIO.new
+            formatter.write(e, o)
+            @config << o.string
+          end
+        else
+          @config = Array.new
+        end
       end
       
       public
@@ -218,7 +230,7 @@ module Netconf
         super(rpc_reply)
       end
     end
-    
+
     private
     
     def hello_parser(buff)
@@ -302,29 +314,68 @@ module Netconf
       end # End Lambda named parser
       return parser
     end
-    
+ 
+    # NB: requires @lock.synchronize around calls to this function
+    def connect_internal
+      begin
+        puts "Attempting to connect..."
+        @message_id = Integer(1)
+        @ssh = SSH.new(@login)
+        @ssh.open("netconf")
+        buff = StringIO.new
+        # NB: Throwing the capabilities list on the floor here, 
+        #     since this is only for XR based netconf, and in
+        #     the puppet context, this is fine
+        @ssh.receive(hello_parser(buff))
+        @ssh.send(Format::HELLO)
+        true
+      rescue Net::SSH::Disconnect => e
+        @ssh = nil
+        e
+      rescue Net::SSH::AuthenticationFailed => e
+        @ssh = nil
+        e
+      end
+    end
+
+    # NB: requires @lock.synchronize around calls to this function   
+    def tx_request_and_rx_reply_internal(msg)
+      fail SSHNotConnected.new unless @ssh
+      @ssh.send(msg)
+      buff = StringIO.new
+      @ssh.receive(netconf_1_1_parser(buff))
+      @message_id = @message_id + 1
+      return buff.string
+    end 
+
     def tx_request_and_rx_reply(msg)
       @lock.synchronize do
-        if not @ssh
-          @message_id = Integer(1)
-          @ssh = SSH.new(@login)
-          @ssh.open("netconf")
-          buff = StringIO.new
-          # NB: Throwing the capabilities list on the floor here, 
-          #     since this is only for XR based netconf, and in
-          #     the puppet context, this is fine
-          @ssh.receive(hello_parser(buff))
-          @ssh.send(Format::HELLO)
+        begin
+          tx_request_and_rx_reply_internal(msg)
+        rescue Net::SSH::Disconnect => e
+          ret = connect_internal
+          if ret == true
+            puts "Reconnect after disconnect!"
+            begin
+              tx_request_and_rx_reply_internal(msg)
+            rescue Net::SSH::Disconnect => e
+              e
+            end
+          else
+            puts "Failed on reconnect"
+            ret
+          end
         end
-        @ssh.send(msg)
-        buff = StringIO.new
-        @ssh.receive(netconf_1_1_parser(buff))
-        @message_id = @message_id + 1
-        return buff.string
       end
     end
     
     public
+
+    def connect()
+      @lock.synchronize do
+        connect_internal
+      end
+    end
 
     def initialize(login)
       @login = login
@@ -359,7 +410,7 @@ module Netconf
   end
 end
 
-=begin
+
 
 # SAMPLE USAGE
 
@@ -405,7 +456,10 @@ login = { :target => '192.168.1.16',
 filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
 #filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
 ncc = Netconf::Client.new(login)
+reply = ncc.connect
+puts "Attempted to connect and got #{reply}"
 reply = ncc.get_config(filter)
+
 #reply = ncc.get_config(nil)
 puts "config response from #{filter}"
 reply.errors.each do |e|
@@ -446,6 +500,9 @@ reply.errors.each do |e|
   e.each { |k,v| puts "#{k} - #{v}" }
 end
 
+puts "Sleeping for 65 seconds to give you time to disable SSH on the router"
+sleep(65)
+
 # Show the config we just removed
 reply = ncc.get_config(vrf_filter)
 reply.config.each { |c| puts c }
@@ -465,4 +522,3 @@ reply.errors.each do |e|
 end
 
 
-=end
