@@ -15,54 +15,66 @@
 # limitations under the License.
 
 require_relative 'yang'
-
 require 'rexml/document'
-#require 'pry'
-#require 'pry-nav'
 
 module Cisco
-
-  class Netconf
+  # Cisco module
+  module Netconf
+    # Netconf module performs conversion of REXML documents into
+    # a format with types that are comparable to the output of
+    # JSON.parse
+    NC_BASE_1_0_NS = 'urn:ietf:params:xml:ns:netconf:base:1.0'
 
     def self.empty?(nc)
-      return !nc || nc.empty?
+      !nc || nc.empty?
     end
 
     def self.convert_xml(xml)
-      raise "unexpected #{xml} is not an XML document" unless xml.is_a?(REXML::Document)
-      return convert_xml_node(xml.root, {})
+      fail "#{xml} is not an XML document" unless xml.is_a?(REXML::Document)
+      convert_xml_node(xml.root)
     end
 
-    def self.convert_xml_node(node, parent_namespaces)
-      raise "unexpected #{node} is not an XML node" unless node.is_a?(REXML::Element)
+    def self.convert_xml_node(node)
+      fail "#{node} is not an XML node" unless node.is_a?(REXML::Element)
       out_hash = {}
       children = node.to_a
       if children.length == 1 && node.has_text?
         out_hash[node.name] = [children[0].value.strip]
       elsif !node.has_elements?
-        out_hash[node.name] = [nil]
+        out_hash[node.name] = []
       else
-        out_hash[node.name] = children.map { |child| convert_xml_node(child, node.namespaces) }
+        out_hash[node.name] = children.map { |child| convert_xml_node(child) }
       end
       # Looking for operation=delete in the netconf:base:1.0 namespace
-      if node.attributes.get_attribute_ns('urn:ietf:params:xml:ns:netconf:base:1.0', 'operation').to_s == 'delete'
-        out_hash[node.name] << :delete
+      if node.attributes.get_attribute_ns(NC_BASE_1_0_NS,
+                                          'operation').to_s == 'delete'
+        out_hash[:delete] = :delete
       end
-      return out_hash
+      out_hash
+    end
+
+    def self.convert_rexml_from_string(input)
+      if empty?(input)
+        out = {}
+      else
+        if @iw.nil?
+          @iw = {}
+          @iw[:ignore_whitespace_nodes] = :all
+        end
+        out = convert_xml(REXML::Document.new(input, @iw))
+      end
     end
 
     def self.insync_for_merge(target, current)
-      target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
-      current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
-
-      !Yang::needs_something?(:merge, target_doc, current_doc)
+      !Yang.needs_something?(:merge,
+                             convert_rexml_from_string(target),
+                             convert_rexml_from_string(current))
     end
 
     def self.insync_for_replace(target, current)
-      target_doc = self.empty?(target) ? {} : convert_xml(REXML::Document.new(target, { :ignore_whitespace_nodes => :all }))
-      current_doc = self.empty?(current) ? {} : convert_xml(REXML::Document.new(current, { :ignore_whitespace_nodes => :all }))
-      !Yang::needs_something?(:replace, target_doc, current_doc)
+      !Yang.needs_something?(:replace,
+                             convert_rexml_from_string(target),
+                             convert_rexml_from_string(current))
     end
-
   end # Netconf
 end # Cisco

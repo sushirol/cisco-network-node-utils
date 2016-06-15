@@ -17,12 +17,13 @@
 require 'json'
 
 module Cisco
-
+  # The Yang class is a container for the needs_something? logic, which
+  # attempts to determine if a given operation and data structures
+  # will require setting the configuration of the remote device.
   class Yang
-
     # Is the specified yang string empty?
     def self.empty?(yang)
-      return !yang || yang.empty?
+      !yang || yang.empty?
     end
 
     # Given a current and target YANG configuration, returns true if
@@ -86,7 +87,7 @@ module Cisco
     # hashes, if the run hash table has elements that are not
     # in target, we ultimately indicate that replace is needed
     def self.needs_something?(op, target, run)
-      not hash_equiv?(op, target, run)
+      !hash_equiv?(op, target, run)
     end
 
     def self.nil_array(elt)
@@ -95,58 +96,65 @@ module Cisco
 
     def self.sub_elt(op, target, run)
       if target.is_a?(Hash) && run.is_a?(Hash)
-        return self.hash_equiv?(op, target, run)
+        hash_equiv?(op, target, run)
       elsif target.is_a?(Array) && run.is_a?(Array)
-        return self.array_equiv?(op, target, run)
+        array_equiv?(op, target, run)
       else
-        return !(target != run && !self.nil_array(target))
+        delete = target.is_a?(Hash) && (target[:delete] == :delete)
+        delete || target == run || nil_array(target)
       end
     end
 
     def self.array_equiv?(op, target, run)
       n = target.length
-      delete = false
-      loop = lambda {|i|
+      # We need to count the number of times that we've had a miss because
+      # the target element was marked delete
+      no_op_delete_count = 0
+      loop = lambda do |i|
         if i == n
           if op == :replace
-            # NB: Not sure if this is correct
-            if delete
-              run.length == (target.length - 1)
-            else
-              run.length == target.length
-            end
+            # NB: We could end up with arrays that have only nil in them
+            # sometimes, so correct for that, then normalize for the
+            # number of elements that are no-ops because they are marked
+            # delete
+            rl = run.clone.delete_if(&:nil?).length
+            tl = target.clone.delete_if(&:nil?).length - no_op_delete_count
+            rl == tl
           else
-            # NB: Will need to insert logic around delete here
             true
           end
         else
           target_elt = target[i]
-          # Detect and note if our target has a delete tag.  Run shall never have a
-          # delete tag (it comes from the host)
-          if :delete == target_elt
+          if target_elt.is_a?(Hash) && (target_elt[:delete] == :delete)
+            target_elt = target_elt.clone
+            target_elt.delete(:delete)
             delete = true
-            loop.call(i + 1)
-          else
-            run_elt = run.find { |run_elt|
-              self.sub_elt(op, target_elt, run_elt)
-            }
-            
-            if run_elt.nil? && !nil_array(target_elt)
-              # Add additional delete logic here
+          end
+          run_elt = run.find { |re| sub_elt(op, target_elt, re) }
+
+          if run_elt.nil? && !nil_array(target_elt)
+            if delete
+              no_op_delete_count += 1
+              loop.call(i + 1)
+            else
               target_elt.nil?
+            end
+          else
+            if delete
+              false
             else
               loop.call(i + 1)
             end
           end
         end
-      }
+      end
       loop.call(0)
     end
 
     def self.hash_equiv?(op, target, run)
       keys = target.keys
       n = keys.length
-      loop = lambda {|i|
+      loop = lambda do |i|
         if i == n
           if op == :replace
             run.keys.length == target.keys.length
@@ -157,15 +165,14 @@ module Cisco
           k = keys[i]
           run_v = run[k]
           target_v = target[k]
-          if run_v.nil? && !self.nil_array(target_v)
+          if run_v.nil? && !nil_array(target_v)
             false
           else
-            self.sub_elt(op, target_v, run_v) && loop.call(i + 1)
+            sub_elt(op, target_v, run_v) && loop.call(i + 1)
           end
         end
-      }
+      end
       loop.call(0)
     end
-
-  end # Yang
-end # Cisco
+  end
+end
