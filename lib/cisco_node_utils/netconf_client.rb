@@ -130,7 +130,7 @@ module Netconf
       format_msg(body)
     end
     
-    def format_edit_config_msg_with_config_tag (message_id, default_operation, target, config)
+    def self.format_edit_config_msg_with_config_tag (message_id, default_operation, target, config)
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
         "  <edit-config>\n" +
@@ -142,7 +142,7 @@ module Netconf
       format_msg(body)
     end
     
-    def format_edit_config_msg (message_id, default_operation, target, config)
+    def self.format_edit_config_msg (message_id, default_operation, target, config)
       format_edit_config_msg_with_config_tag(message_id, default_operation, target,
                                              "<config xmlns=#{DEFAULT_NAMESPACE}>#{config}</config>")
     end
@@ -359,8 +359,8 @@ module Netconf
   end
 end
 
-
 =begin
+
 # SAMPLE USAGE
 
 red_vrf =
@@ -397,6 +397,8 @@ vrfs_config =
    </vrf>
   </vrfs>'
 
+vrf_filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
+
 login = { :target => '192.168.1.16',
   :username => 'root',
   :password => 'lab'}
@@ -411,5 +413,56 @@ reply.errors.each do |e|
   e.each { |k,v| puts "#{k} - #{v}" }
 end
 reply.config.each { |c| puts c }
+
+# Add the red vrf
+reply = ncc.edit_config("candidate", "merge", red_vrf)
+puts "edit_config response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+reply = ncc.commit_changes()
+puts "commit_changes response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+
+# Show the config we just added
+reply = ncc.get_config(vrf_filter)
+reply.config.each { |c| puts c }
+
+# Delete the VRF
+reply = ncc.edit_config("candidate", "merge", delete_red_vrf)
+puts "edit_config response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+reply = ncc.commit_changes()
+puts "commit_changes response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+
+# Show the config we just removed
+reply = ncc.get_config(vrf_filter)
+reply.config.each { |c| puts c }
+
+# Delete the VRF                                                                                                              
+reply = ncc.edit_config("candidate", "merge", delete_red_vrf)
+puts "edit_config response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+reply = ncc.commit_changes()
+puts "commit_changes response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+
 
 =end
