@@ -31,7 +31,7 @@ class TestNetconf < TestCase
   end
 
   def all_skipped
-    skip 'Node under test does not appear to use the gRPC client'
+    skip 'Node under test does not appear to use the Netconf client'
   end
 
   def client
@@ -49,24 +49,24 @@ class TestNetconf < TestCase
     e = assert_raises Cisco::AuthenticationFailed do
       Cisco::Client::NETCONF.new(**env)
     end
-    assert_equal('gRPC client creation failure: Failed authentication',
+    assert_equal('Netconf client creation failure: Failed authentication',
                  e.message)
   end
 
   def test_connection_failure
-    # Failure #1: connecting to a port that's listening for a non-gRPC protocol
+    # Failure #1: connecting to a port that's listening for a non-Netconf protocol
     env = Cisco::Environment.environment.merge(port: 23)
     e = assert_raises Cisco::ConnectionRefused do
       Cisco::Client::NETCONF.new(**env)
     end
-    assert_equal('gRPC client creation failure: Connection refused: ',
+    assert_equal('Netconf client creation failure: Connection refused: ',
                  e.message)
     # Failure #2: Connecting to a port that's not listening at all
     env = Cisco::Environment.environment.merge(port: 0)
     e = assert_raises Cisco::ConnectionRefused do
       Cisco::Client::NETCONF.new(**env)
     end
-    assert_equal('gRPC client creation failure: ' \
+    assert_equal('Netconf client creation failure: ' \
                  'timed out during initial connection: Deadline Exceeded',
                  e.message)
   end
@@ -109,7 +109,7 @@ int gi0/0/0/0 bark bark
 
 ', e.message)
     # rubocop:enable Style/TrailingWhitespace
-    # Unlike NXAPI, a gRPC config command is always atomic
+    # Unlike NXAPI, a Netconf config command is always atomic
     assert_empty(e.successful_input)
     assert_equal(['int gi0/0/0/0 wark', 'int gi0/0/0/0 bark bark'],
                  e.rejected_input)

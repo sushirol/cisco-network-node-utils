@@ -30,6 +30,8 @@ extensions.each do |ext|
   begin
     require_relative ext
   rescue LoadError => e
+    puts "ignore client #{ext}"
+    puts e
     # ignore missing client-(grpc|nxapi), they're not always required
     raise unless e.message =~ /#{Regexp.escape(ext)}/
   end

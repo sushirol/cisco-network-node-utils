@@ -29,6 +29,7 @@ class Cisco::Client::NETCONF < Cisco::Client
 
   def initialize(**kwargs)
     # Defaults for netconf:
+    kwargs[:host] ||= '127.0.0.1'
     kwargs[:port] ||= '830'
     puts "NETCONF initalize"
     super(data_formats: [:xml],
