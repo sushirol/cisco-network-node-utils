@@ -130,7 +130,7 @@ module Netconf
       format_msg(body)
     end
     
-    def self.format_edit_config_msg_with_config_tag (message_id, default_operation, target, config)
+    def format_edit_config_msg_with_config_tag (message_id, default_operation, target, config)
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
         "  <edit-config>\n" +
@@ -142,9 +142,9 @@ module Netconf
       format_msg(body)
     end
     
-    def self.format_edit_config_msg (message_id, default_operation, target, config)
-      body = format_edit_config_msg_with_config_tag(message_id, default_operation, target,
-                                                    "<config xmlns=#{DEFAULT_NAMESPACE}>#{config}</config>")
+    def format_edit_config_msg (message_id, default_operation, target, config)
+      format_edit_config_msg_with_config_tag(message_id, default_operation, target,
+                                             "<config xmlns=#{DEFAULT_NAMESPACE}>#{config}</config>")
     end
   end
   
@@ -158,10 +158,6 @@ module Netconf
   end
   
   class Client
-    class << self
-      undef_method :new
-    end
-    
     public
     
     class RpcResponse
@@ -224,13 +220,8 @@ module Netconf
     end
     
     private
-    @ssh = nil
-    @lock = Mutex.new
-    @last_ssh_use = nil
-    @login = nil
-    @timeout = nil
     
-    def self.hello_parser(buff)
+    def hello_parser(buff)
       lambda do |data|
         md = /(?=\]\]>\]\])/m.match(data)
         if md.nil?
@@ -245,7 +236,7 @@ module Netconf
       end
     end
     
-    def self.netconf_1_1_parser(buff)
+    def netconf_1_1_parser(buff)
       state = :scanning_for_LF_HASH
       bytes_left = 0
       buffering_data = StringIO.new
@@ -312,84 +303,36 @@ module Netconf
       return parser
     end
     
-    # NB: Has to be called from within the context of @lock.synchronize
-    def self.connect_internal
-      if not @ssh
-        @message_id = Integer(1)
-        @ssh = SSH.new(@login)
-        @ssh.open("netconf")
-        
-        buff = StringIO.new
-        # NB: Throwing the capabilities list on the floor here, since this is
-        #     only for XR based netconf, and in the puppet context, this is fine
-        @ssh.receive(hello_parser(buff))
-        @ssh.send(Format::HELLO)
-        @last_ssh_use = Time.now
-        # Create a thread to kill this session after some level of inactivity
-        if @timeout
-          max = @timeout
-        else
-          max = 30.0
-        end
-        Thread.new {
-          done = false
-          while not done
-            sleep_time = nil
-            @lock.synchronize {
-              d = Time.now - @last_ssh_use
-              if max > d
-                sleep_time = max - d
-                puts "Session is in use, cannot kill it"
-              else
-                puts "Session is now defunct"
-                sleep_time = nil
-                @ssh.send(Format::format_close_session(@message_id))
-                @ssh.receive(netconf_1_1_parser(StringIO.new))
-                @ssh = nil
-                done = true
-              end
-            }
-            sleep(sleep_time) if sleep_time
-          end
-        }
-      else
-        raise InternalError, "Asked to connect to SSH when already connected"
-      end
-    end
-    
-    def self.tx_request_and_rx_reply(msg)
-      @lock.synchronize {
+    def tx_request_and_rx_reply(msg)
+      @lock.synchronize do
         if not @ssh
-          if @login
-            connect_internal
-          else
-            raise SSHUninitialized, "Attempted to use ssh without connecting first"
-          end
+          @message_id = Integer(1)
+          @ssh = SSH.new(@login)
+          @ssh.open("netconf")
+          buff = StringIO.new
+          # NB: Throwing the capabilities list on the floor here, 
+          #     since this is only for XR based netconf, and in
+          #     the puppet context, this is fine
+          @ssh.receive(hello_parser(buff))
+          @ssh.send(Format::HELLO)
         end
-        @last_ssh_use = Time.now
         @ssh.send(msg)
         buff = StringIO.new
         @ssh.receive(netconf_1_1_parser(buff))
         @message_id = @message_id + 1
         return buff.string
-      }
+      end
     end
     
     public
-    
-    def self.connect(login, timeout)
-      @lock.synchronize {
-        if not @ssh
-          @login = login
-          @timeout = timeout
-          true
-        else
-          false
-        end
-      }
+
+    def initialize(login)
+      @login = login
+      @ssh = nil
+      @lock = Mutex.new
     end
     
-    def self.get_config(filter)
+    def get_config(filter)
       if filter == "" || filter.nil?
         msg = Format::format_get_config_all_msg(@message_id)
       else
@@ -398,7 +341,7 @@ module Netconf
       GetConfigResponse.new(tx_request_and_rx_reply(msg))
     end
     
-    def self.edit_config(target, default_operation, config)
+    def edit_config(target, default_operation, config)
       msg = Format::format_edit_config_msg(@message_id,
                                            default_operation, 
                                            target, 
@@ -406,18 +349,18 @@ module Netconf
       EditConfigResponse.new(tx_request_and_rx_reply(msg))
     end
     
-    def self.commit_changes()
+    def commit_changes()
       CommitResponse.new(tx_request_and_rx_reply(Format::format_commit_msg(@message_id)))
     end
     
-    def self.stop()
+    def stop()
       tx_request_and_rx_reply(Format::format_close_session(@message_id))
     end
   end
 end
 
-=begin
 
+=begin
 # SAMPLE USAGE
 
 red_vrf =
@@ -457,17 +400,16 @@ vrfs_config =
 login = { :target => '192.168.1.16',
   :username => 'root',
   :password => 'lab'}
-#filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
-filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
-nc_client = Netconf::Client.connect(login, 5)
-#reply = Netconf::Client.get_config(filter)
-reply = Netconf::Client.get_config(nil)
+filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
+#filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
+ncc = Netconf::Client.new(login)
+reply = ncc.get_config(filter)
+#reply = ncc.get_config(nil)
 puts "config response from #{filter}"
-reply.errors.each {|e|
+reply.errors.each do |e|
   puts "Error:"
-  e.each {|k,v| puts "#{k} - #{v}"}}
-reply.config.each {|c|
-  puts c
-}
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+reply.config.each { |c| puts c }
 
 =end
