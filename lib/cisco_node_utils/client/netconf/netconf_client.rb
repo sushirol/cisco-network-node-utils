@@ -7,29 +7,20 @@ module Netconf
       @args = args.clone
       @channel = nil
       @connection = nil
-      puts "Initializing new SSH connection with args: #{args}"      
     end
     
     def open (subsystem)
-      puts "Opening connection to #{@args[:target]} -s #{subsystem}"
-      
       ssh_args = Hash.new
       ssh_args[:password] ||= @args[:password]
-      ssh_args[:passphrase] = @args[:passphrase] || nil
       ssh_args[:port] = @args[:port]
       ssh_args[:number_of_password_prompts] = 0
       
-      begin
-        @connection = Net::SSH.start(@args[:target], @args[:username], ssh_args)
-        @channel = @connection.open_channel{ |ch| ch.subsystem(subsystem) }
-      rescue Errno::ECONNREFUSED => e
-        
-        puts "Connection refused: #{e}"
-        
-        return nil
+      @connection = Net::SSH.start(@args[:target], 
+                                   @args[:username], 
+                                   ssh_args)
+      @channel = @connection.open_channel do |ch|
+        ch.subsystem(subsystem)
       end
-      
-      @channel
     end
     
     def close ()
@@ -225,6 +216,14 @@ module Netconf
       def config()
         @config
       end
+
+      def config_as_string()
+        o = StringIO.new
+        @config.each do |ce|
+          o.write(ce)
+        end
+        o.string
+      end
     end
     
     class CommitResponse < RpcResponse
@@ -325,7 +324,6 @@ module Netconf
       return parser
     end
  
-    # NB: requires @lock.synchronize around calls to this function
     def connect_internal
       begin
         @message_id = Integer(1)
@@ -342,12 +340,13 @@ module Netconf
         #
         # Net::SSH::Disconnect
         # Net::SSH::AuthenticationFailed
+        # Errno::EHOSTUNREACH
+        # Errno::ECONNREFUSED
         @ssh = nil
         raise e
       end
     end
 
-    # NB: requires @lock.synchronize around calls to this function   
     def tx_request_and_rx_reply_internal(msg)
       fail SSHNotConnected.new unless @ssh
       @ssh.send(msg)
@@ -358,10 +357,12 @@ module Netconf
     end 
 
     def tx_request_and_rx_reply(msg)
-      @lock.synchronize do
-        begin
-          tx_request_and_rx_reply_internal(msg)
-        rescue Net::SSH::Disconnect => e
+      begin
+        tx_request_and_rx_reply_internal(msg)
+      rescue Net::SSH::Disconnect => e
+        if @options.key?(:no_reconnect)
+          raise e
+        else
           connect_internal
           tx_request_and_rx_reply_internal(msg)
         end
@@ -371,15 +372,13 @@ module Netconf
     public
 
     def connect()
-      @lock.synchronize do
-        connect_internal
-      end
+      connect_internal
     end
 
-    def initialize(login)
+    def initialize(login, options = {})
       @login = login
       @ssh = nil
-      @lock = Mutex.new
+      @options = options
     end
 
     def get(filter)
@@ -466,21 +465,32 @@ rescue => e
   puts "Attempted to connect and got #{e.class}/#{e}"
   exit
 end
-
+=begin
 reply = ncc.get(nil)
 reply.response.each do |re|
   puts re
 end
 exit
-
+=end
 
 begin
-  reply = ncc.get_config(filter)
-  # reply = ncc.get_config(nil)
+  #reply = ncc.get_config(filter)
+   reply = ncc.get_config(nil)
 rescue => e
   puts "Attempted to get configuration and got #{e.class}/#{e}"
   exit
 end
+
+reply.config.each { |c| 
+  puts "config element"
+#  puts c 
+}
+
+puts "config as string:\n #{reply.config_as_string}"
+
+exit
+
+
 
 # ... did not finish the begin/rescue/end pattern below, imagine it
 
