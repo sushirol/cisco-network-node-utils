@@ -107,7 +107,17 @@ module Netconf
         "</rpc>\n"
       format_msg(body)
     end
-    
+ 
+    def self.format_get_msg (message_id, nc_filter)
+      body =
+        "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
+        "  <get>\n" +
+        "    #{nc_filter}\n" +
+        "  </get>\n" +
+        "</rpc>\n"
+      format_msg(body)
+    end
+   
     def self.format_get_config_msg (message_id, nc_filter)
       body = 
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
@@ -318,23 +328,22 @@ module Netconf
     # NB: requires @lock.synchronize around calls to this function
     def connect_internal
       begin
-        puts "Attempting to connect..."
         @message_id = Integer(1)
         @ssh = SSH.new(@login)
         @ssh.open("netconf")
+        @ssh.send(Format::HELLO)
         buff = StringIO.new
         # NB: Throwing the capabilities list on the floor here, 
         #     since this is only for XR based netconf, and in
         #     the puppet context, this is fine
         @ssh.receive(hello_parser(buff))
-        @ssh.send(Format::HELLO)
-        true
-      rescue Net::SSH::Disconnect => e
+      rescue => e
+        # It's possible to get these exceptions
+        #
+        # Net::SSH::Disconnect
+        # Net::SSH::AuthenticationFailed
         @ssh = nil
-        e
-      rescue Net::SSH::AuthenticationFailed => e
-        @ssh = nil
-        e
+        raise e
       end
     end
 
@@ -353,18 +362,8 @@ module Netconf
         begin
           tx_request_and_rx_reply_internal(msg)
         rescue Net::SSH::Disconnect => e
-          ret = connect_internal
-          if ret == true
-            puts "Reconnect after disconnect!"
-            begin
-              tx_request_and_rx_reply_internal(msg)
-            rescue Net::SSH::Disconnect => e
-              e
-            end
-          else
-            puts "Failed on reconnect"
-            ret
-          end
+          connect_internal
+          tx_request_and_rx_reply_internal(msg)
         end
       end
     end
@@ -381,6 +380,11 @@ module Netconf
       @login = login
       @ssh = nil
       @lock = Mutex.new
+    end
+
+    def get(filter)
+      msg = Format::format_get_config_msg(@message_id, filter)
+      RpcResponse.new(tx_request_and_rx_reply(msg))
     end
     
     def get_config(filter)
@@ -410,7 +414,7 @@ module Netconf
   end
 end
 
-
+=begin
 
 # SAMPLE USAGE
 
@@ -456,11 +460,30 @@ login = { :target => '192.168.1.16',
 filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
 #filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
 ncc = Netconf::Client.new(login)
-reply = ncc.connect
-puts "Attempted to connect and got #{reply}"
-reply = ncc.get_config(filter)
+begin
+  ncc.connect
+rescue => e
+  puts "Attempted to connect and got #{e.class}/#{e}"
+  exit
+end
 
-#reply = ncc.get_config(nil)
+reply = ncc.get(nil)
+reply.response.each do |re|
+  puts re
+end
+exit
+
+
+begin
+  reply = ncc.get_config(filter)
+  # reply = ncc.get_config(nil)
+rescue => e
+  puts "Attempted to get configuration and got #{e.class}/#{e}"
+  exit
+end
+
+# ... did not finish the begin/rescue/end pattern below, imagine it
+
 puts "config response from #{filter}"
 reply.errors.each do |e|
   puts "Error:"
@@ -522,3 +545,4 @@ reply.errors.each do |e|
 end
 
 
+=end
