@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 #
-# October 2015, Glenn F. Matthews
+# June 2016, Sushrut Shirole
 #
-# Copyright (c) 2015-2016 Cisco and/or its affiliates.
+# Copyright (c) 2016 Cisco and/or its affiliates.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,25 +28,43 @@ class Cisco::Client::NETCONF < Cisco::Client
   attr_accessor :timeout
 
   def initialize(**kwargs)
-    # Defaults for netconf:
-    kwargs[:host] ||= '127.0.0.1'
-    kwargs[:port] ||= '830'
-    puts "NETCONF initalize"
     super(data_formats: [:xml],
           platform:     :ios_xr,
           **kwargs)
-    @login = { :target => '192.168.1.16',
-      :username => 'root',
-      :password => 'lab'}
+
+    @login = { :target => kwargs[:host],
+      :username => kwargs[:username],
+      :password => kwargs[:password]}
+
     @client = Netconf::Client.new(@login)
-    filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
-    reply = @client.get_config(filter)
-    puts "config response from #{filter}"
-    reply.errors.each do |e|
-      puts "Error:"
-      e.each { |k,v| puts "#{k} - #{v}" }
+    begin
+      @client.connect
+    rescue => e
+      puts "Attempted to connect and got class:#{e.class}/error:#{e}"
+      raise_cisco(e)
     end
-    reply.config.each { |c| puts c }
+  end
+
+  def raise_cisco(e)
+    # Net::SSH::Disconnect
+    # Net::SSH::AuthenticationFailed
+    # Errno::EHOSTUNREACH
+    # Errno::ECONNREFUSED
+    begin
+      raise e
+    rescue Net::SSH::AuthenticationFailed => e
+      raise Cisco::AuthenticationFailed, \
+        'Netconf client creation failure: ' + e.message
+    rescue Net::SSH::Disconnect
+      raise e
+    rescue Errno::EHOSTUNREACH
+      raise e
+    rescue Errno::ECONNREFUSED
+      raise Cisco::ConnectionRefused, \
+        'Netconf client creation failure: ' + e.message
+    rescue Errno::ECONNRESET
+      raise e
+    end
   end
 
   def self.validate_args(**kwargs)
@@ -59,40 +77,29 @@ class Cisco::Client::NETCONF < Cisco::Client
       if kwargs[:password].nil?
   end
 
-  def set_xml(data_format: :xml,
+  def set(data_format: :xml,
           context:     nil,
           values:      nil,
           **kwargs)
-    super
-    red_vrf =
-      '<vrfs xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg">
-         <vrf>
-          <vrf-name>red</vrf-name>
-          <create></create>
-         </vrf>
-       </vrfs>'
-    reply = @connect.edit_config("candidate", "merge", red_vrf)
-    puts "edit_config response errors"
-    reply.errors.each do |e|
-      puts "Error:"
-      e.each { |k,v| puts "#{k} - #{v}" }
-    end
-    reply = @client.commit_changes()
-    puts "commit_changes response errors"
-    reply.errors.each do |e|
-      puts "Error:"
-      e.each { |k,v| puts "#{k} - #{v}" }
+    begin
+      reply = @client.edit_config("candidate", "merge", values)
+      reply = @client.commit_changes()
+    rescue => e
+      raise_cisco(e)
     end
   end
 
-  def get_xml(data_format: :cli,
+  def get(data_format: :cli,
           command:     nil,
           context:     nil,
           value:       nil)
-    super
-    vrf_filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
-    reply = @client.get_config(vrf_filter)
-    reply.config.each { |c| puts c }
+    begin
+      reply = @client.get_config(command)
+      reply.config_as_string
+    rescue => e
+      puts e
+      raise_cisco(e)
+    end
   end
 
 end

@@ -8,36 +8,36 @@ module Netconf
       @channel = nil
       @connection = nil
     end
-    
+
     def open (subsystem)
       ssh_args = Hash.new
       ssh_args[:password] ||= @args[:password]
       ssh_args[:port] = @args[:port]
       ssh_args[:number_of_password_prompts] = 0
-      
-      @connection = Net::SSH.start(@args[:target], 
-                                   @args[:username], 
+
+      @connection = Net::SSH.start(@args[:target],
+                                   @args[:username],
                                    ssh_args)
       @channel = @connection.open_channel do |ch|
         ch.subsystem(subsystem)
       end
     end
-    
+
     def close ()
       @channel.close unless @channel.nil?
       @connection.close unless @connection.nil?
       @channel = nil
       @connection = nil
     end
-    
+
     def send (data)
       @channel.send_data(data)
     end
-    
+
     def receive (parser)
       ret = []
       continue = true
-      
+
       @channel.on_data do |ch, data|
         result = parser.call(data)
         # If parser returns :stop, we take that as a hint to stop
@@ -55,34 +55,34 @@ module Netconf
           ret << result
         end
       end
-      
+
       @channel.on_extended_data do |ch, type, data|
         continue = false
       end
-      
+
       # Loop is executed until on_data sets continue to false
       @connection.loop {continue}
-      
+
       ret
     end
   end # class SSH
-  
+
   module Format
-    
+
     DEFAULT_NAMESPACE = "\"urn:ietf:params:xml:ns:netconf:base:1.0\""
-    
-    HELLO = 
+
+    HELLO =
       "<hello xmlns=#{DEFAULT_NAMESPACE}>" +
       "  <capabilities>\n" +
       "    <capability>urn:ietf:params:netconf:base:1.1</capability>\n" +
       "  </capabilities>\n" +
       "</hello>\n" +
       "]]>]]>\n"
-    
+
     def self.format_msg (body)
       "##{body.length}\n#{body}\n##\n\n"
     end
-    
+
     def self.format_close_session (message_id)
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
@@ -90,7 +90,7 @@ module Netconf
         " </rpc>\n"
       format_msg(body)
     end
-    
+
     def self.format_commit_msg (message_id)
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
@@ -98,7 +98,7 @@ module Netconf
         "</rpc>\n"
       format_msg(body)
     end
- 
+
     def self.format_get_msg (message_id, nc_filter)
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
@@ -108,9 +108,9 @@ module Netconf
         "</rpc>\n"
       format_msg(body)
     end
-   
+
     def self.format_get_config_msg (message_id, nc_filter)
-      body = 
+      body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
         "  <get-config>\n" +
         "    <source><running/></source>\n" +
@@ -121,9 +121,9 @@ module Netconf
         "</rpc>\n"
       format_msg(body)
     end
-    
+
     def self.format_get_config_all_msg (message_id)
-      body = 
+      body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
         "  <get-config>\n" +
         "    <source><running/></source>\n" +
@@ -131,7 +131,7 @@ module Netconf
         "</rpc>\n"
       format_msg(body)
     end
-    
+
     def self.format_edit_config_msg_with_config_tag (message_id, default_operation, target, config)
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
@@ -143,25 +143,25 @@ module Netconf
         "</rpc>\n"
       format_msg(body)
     end
-    
+
     def self.format_edit_config_msg (message_id, default_operation, target, config)
       format_edit_config_msg_with_config_tag(message_id, default_operation, target,
                                              "<config xmlns=#{DEFAULT_NAMESPACE}>#{config}</config>")
     end
   end
-  
+
   class InternalError < StandardError
   end
-  
+
   class ParseException < StandardError
   end
-  
+
   class SSHNotConnected < StandardError
   end
-  
+
   class Client
     public
-    
+
     class RpcResponse
       private
 
@@ -179,21 +179,21 @@ module Netconf
           @transport_errors = rpc_reply
         end
       end
-      
+
       public
       def errors
         @errors
       end
-      
+
       def errors?
         not @errors.empty?
       end
-      
+
       def response
         @doc
       end
     end
-    
+
     class GetConfigResponse < RpcResponse
       private
 
@@ -211,7 +211,7 @@ module Netconf
           @config = Array.new
         end
       end
-      
+
       public
       def config()
         @config
@@ -225,14 +225,14 @@ module Netconf
         o.string
       end
     end
-    
+
     class CommitResponse < RpcResponse
       private
       def initialize(rpc_reply)
         super(rpc_reply)
       end
     end
-    
+
     class EditConfigResponse < RpcResponse
       private
       def initialize(rpc_reply)
@@ -241,7 +241,7 @@ module Netconf
     end
 
     private
-    
+
     def hello_parser(buff)
       lambda do |data|
         md = /(?=\]\]>\]\])/m.match(data)
@@ -256,12 +256,12 @@ module Netconf
         end
       end
     end
-    
+
     def netconf_1_1_parser(buff)
       state = :scanning_for_LF_HASH
       bytes_left = 0
       buffering_data = StringIO.new
-      
+
       parser = lambda do |data|
         data = data + buffering_data.string
         buffering_data.truncate(0)
@@ -291,17 +291,17 @@ module Netconf
             raise ParseException, "expected match for chunk_start, didn't get one with #{data}"
           else
             # Jump to scanning_for_chunk_data state
-            # Set bytes_left to value of chunk size 
+            # Set bytes_left to value of chunk size
             state = :scanning_for_chunk_data
             bytes_left = Integer("#{md[1]}")
-            
+
             # Handle remaining data
             parser.call(data[md[1].length + 3..-1])
           end
         when :scanning_for_chunk_data
           if data.length >= bytes_left
             buff.write(data[0..bytes_left])
-            
+
             # Handle remaining data
             state = :scanning_for_LF_HASH
             parser.call(data[bytes_left..-1])
@@ -323,7 +323,7 @@ module Netconf
       end # End Lambda named parser
       return parser
     end
- 
+
     def connect_internal
       begin
         @message_id = Integer(1)
@@ -331,7 +331,7 @@ module Netconf
         @ssh.open("netconf")
         @ssh.send(Format::HELLO)
         buff = StringIO.new
-        # NB: Throwing the capabilities list on the floor here, 
+        # NB: Throwing the capabilities list on the floor here,
         #     since this is only for XR based netconf, and in
         #     the puppet context, this is fine
         @ssh.receive(hello_parser(buff))
@@ -354,7 +354,7 @@ module Netconf
       @ssh.receive(netconf_1_1_parser(buff))
       @message_id = @message_id + 1
       return buff.string
-    end 
+    end
 
     def tx_request_and_rx_reply(msg)
       begin
@@ -368,7 +368,7 @@ module Netconf
         end
       end
     end
-    
+
     public
 
     def connect()
@@ -385,7 +385,7 @@ module Netconf
       msg = Format::format_get_config_msg(@message_id, filter)
       RpcResponse.new(tx_request_and_rx_reply(msg))
     end
-    
+
     def get_config(filter)
       if filter == "" || filter.nil?
         msg = Format::format_get_config_all_msg(@message_id)
@@ -394,19 +394,19 @@ module Netconf
       end
       GetConfigResponse.new(tx_request_and_rx_reply(msg))
     end
-    
+
     def edit_config(target, default_operation, config)
       msg = Format::format_edit_config_msg(@message_id,
-                                           default_operation, 
-                                           target, 
+                                           default_operation,
+                                           target,
                                            config)
       EditConfigResponse.new(tx_request_and_rx_reply(msg))
     end
-    
+
     def commit_changes()
       CommitResponse.new(tx_request_and_rx_reply(Format::format_commit_msg(@message_id)))
     end
-    
+
     def stop()
       tx_request_and_rx_reply(Format::format_close_session(@message_id))
     end
@@ -433,7 +433,7 @@ delete_red_vrf =
      </vrf>
    </vrfs>'
 
-vrfs_config = 
+vrfs_config =
   '<vrfs xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg">
    <vrf>
     <vrf-name>red</vrf-name>
@@ -471,7 +471,6 @@ reply.response.each do |re|
   puts re
 end
 exit
-=end
 
 begin
   #reply = ncc.get_config(filter)
@@ -481,9 +480,9 @@ rescue => e
   exit
 end
 
-reply.config.each { |c| 
+reply.config.each { |c|
   puts "config element"
-#  puts c 
+#  puts c
 }
 
 puts "config as string:\n #{reply.config_as_string}"
@@ -540,7 +539,7 @@ sleep(65)
 reply = ncc.get_config(vrf_filter)
 reply.config.each { |c| puts c }
 
-# Delete the VRF                                                                                                              
+# Delete the VRF
 reply = ncc.edit_config("candidate", "merge", delete_red_vrf)
 puts "edit_config response errors"
 reply.errors.each do |e|

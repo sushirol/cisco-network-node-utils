@@ -21,6 +21,12 @@ require_relative 'basetest'
 # Test case for Cisco::Client::NETCONF::Client class
 class TestNetconf < TestCase
   @@client = nil # rubocop:disable Style/ClassVars
+  @@red_vrf = \
+    "<vrfs xmlns='http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg'>\n  <vrf>\n    <vrf-name>\n      red\n    </vrf-name>\n    <create/>\n  </vrf>\n</vrfs>"
+  @@blue_vrf = \
+    "<vrfs xmlns='http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg'>\n  <vrf>\n    <vrf-name>\n      blue\n    </vrf-name>\n    <create/>\n  </vrf>\n</vrfs>"
+  @@root_vrf = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
+  @@invalid = '<infra-rsi-cfg:vrfs-invalid xmlns:infra-rsi-cfg-invalid="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg-invalid"/>'
 
   def self.runnable_methods
     # If we're pointed to an Netconf node (as evidenced by a port num 830)
@@ -49,78 +55,55 @@ class TestNetconf < TestCase
     e = assert_raises Cisco::AuthenticationFailed do
       Cisco::Client::NETCONF.new(**env)
     end
-    assert_equal('Netconf client creation failure: Failed authentication',
+    assert_equal('Netconf client creation failure: Authentication failed for user ' + Cisco::Environment.environment[:username] + '@' + Cisco::Environment.environment[:host],
                  e.message)
   end
 
   def test_connection_failure
-    # Failure #1: connecting to a port that's listening for a non-Netconf protocol
-    env = Cisco::Environment.environment.merge(port: 23)
-    e = assert_raises Cisco::ConnectionRefused do
+    # Failure #1: connecting to a host that's listening for a non-Netconf protocol
+    env = Cisco::Environment.environment.merge(host: '1.1.1.1')
+    e = assert_raises Errno::EHOSTUNREACH do
       Cisco::Client::NETCONF.new(**env)
     end
-    assert_equal('Netconf client creation failure: Connection refused: ',
-                 e.message)
-    # Failure #2: Connecting to a port that's not listening at all
-    env = Cisco::Environment.environment.merge(port: 0)
-    e = assert_raises Cisco::ConnectionRefused do
-      Cisco::Client::NETCONF.new(**env)
-    end
-    assert_equal('Netconf client creation failure: ' \
-                 'timed out during initial connection: Deadline Exceeded',
+    assert_equal('No route to host - connect(2)',
                  e.message)
   end
 
-  def test_set_cli_string
-    client.set(context: 'int gi0/0/0/0',
-               values:  'description panda')
-    run = client.get(command: 'show run int gi0/0/0/0')
-    assert_match(/description panda/, run)
+  def test_set_string
+    client.set(context: nil,
+               values: @@red_vrf)
+    run = client.get(command: @@root_vrf)
+    assert_match(@@red_vrf, run)
   end
 
-  def test_set_cli_array
-    client.set(context: ['int gi0/0/0/0'],
-               values:  ['description elephant'])
-    run = client.get(command: 'show run int gi0/0/0/0')
-    assert_match(/description elephant/, run)
-  end
-
-  def test_set_cli_invalid
+  def test_set_invalid
     e = assert_raises Cisco::CliError do
-      client.set(context: ['int gi0/0/0/0'],
-                 values:  ['wark', 'bark bark'])
+      client.set(context: nil,
+                 values:  @invalid)
     end
     # rubocop:disable Style/TrailingWhitespace
-    assert_equal('The following commands were rejected:
-  int gi0/0/0/0 wark
-  int gi0/0/0/0 bark bark
-with error:
+    #assert_equal('The following commands were rejected:
+  #int gi0/0/0/0 wark
+  #int gi0/0/0/0 bark bark
+#with error:
 
-!! SYNTAX/AUTHORIZATION ERRORS: This configuration failed due to
-!! one or more of the following reasons:
-!!  - the entered commands do not exist,
-!!  - the entered commands have errors in their syntax,
-!!  - the software packages containing the commands are not active,
-!!  - the current user is not a member of a task-group that has
-!!    permissions to use the commands.
+#!! SYNTAX/AUTHORIZATION ERRORS: This configuration failed due to
+#!! one or more of the following reasons:
+#!!  - the entered commands do not exist,
+#!!  - the entered commands have errors in their syntax,
+#!!  - the software packages containing the commands are not active,
+#!!  - the current user is not a member of a task-group that has
+#!!    permissions to use the commands.
 
-int gi0/0/0/0 wark
-int gi0/0/0/0 bark bark
+#int gi0/0/0/0 wark
+#int gi0/0/0/0 bark bark
 
-', e.message)
-    # rubocop:enable Style/TrailingWhitespace
-    # Unlike NXAPI, a Netconf config command is always atomic
-    assert_empty(e.successful_input)
-    assert_equal(['int gi0/0/0/0 wark', 'int gi0/0/0/0 bark bark'],
-                 e.rejected_input)
-  end
-
-  def test_get_cli_default
-    result = client.get(command: 'show debug')
-    s = @device.cmd('show debug')
-    # Strip the leading timestamp and trailing prompt from the telnet output
-    s = s.split("\n")[2..-2].join("\n")
-    assert_equal(s, result)
+#', e.message)
+    ## rubocop:enable Style/TrailingWhitespace
+    ## Unlike NXAPI, a Netconf config command is always atomic
+    #assert_empty(e.successful_input)
+    #assert_equal(['int gi0/0/0/0 wark', 'int gi0/0/0/0 bark bark'],
+                 #e.rejected_input)
   end
 
   def test_get_cli_invalid
@@ -129,38 +112,22 @@ int gi0/0/0/0 bark bark
     end
   end
 
-  def test_get_cli_incomplete
+  def test_get_incomplete
     assert_raises Cisco::CliError do
-      client.get(command: 'show ')
+      client.get(command: @@invalid)
     end
   end
 
-  def test_get_cli_explicit
-    result = client.get(command: 'show debug', data_format: :cli)
-    s = @device.cmd('show debug')
-    # Strip the leading timestamp and trailing prompt from the telnet output
-    s = s.split("\n")[2..-2].join("\n")
-    assert_equal(s, result)
-  end
-
-  def test_get_cli_empty
-    result = client.get(command:     'show debug | include foo | exclude foo',
-                        data_format: :cli)
-    assert_nil(result)
-  end
-
-  def test_get_cli_cache
-    result = client.get(command: 'show clock', data_format: :cli)
-    sleep 2
-    assert_equal(result, client.get(command: 'show clock', data_format: :cli))
+  def test_get_empty
+    result = client.get(command: @@blue_vrf)
+    assert_empty(result)
   end
 
   # TODO: add structured output test cases (when supported on XR)
-
   def test_smart_create
     autoclient = Cisco::Client.create
     assert_equal(Cisco::Client::NETCONF, autoclient.class)
-    assert(autoclient.supports?(:cli))
+    assert(autoclient.supports?(:xml))
     refute(autoclient.supports?(:nxapi_structured))
     assert_equal(:ios_xr, autoclient.platform)
   end

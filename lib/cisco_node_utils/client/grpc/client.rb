@@ -36,7 +36,6 @@ class Cisco::Client::GRPC < Cisco::Client
     # Defaults for gRPC:
     kwargs[:host] ||= '127.0.0.1'
     kwargs[:port] ||= 57_400
-    puts "GRPC initiatlize"
     # rubocop:disable Style/HashSyntax
     super(data_formats: [:cli],
           platform:     :ios_xr,
@@ -52,6 +51,8 @@ class Cisco::Client::GRPC < Cisco::Client
       get(command: 'show clock')
     rescue Cisco::ClientError => e
       error 'initial connect failed: ' + e.to_s
+      # Some peer police connection attempt rate require some time between connection attempts.
+      sleep(1)
       if e.message[/deadline exceeded/i]
         raise Cisco::ConnectionRefused, \
               base_msg + 'timed out during initial connection: ' + e.message
