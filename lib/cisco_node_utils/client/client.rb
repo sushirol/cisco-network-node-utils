@@ -34,7 +34,6 @@ class Cisco::Client
 
   # Each subclass should call this method to register itself.
   def self.register_client(client)
-    puts "Generic client registration"
     @@clients << client
   end
 

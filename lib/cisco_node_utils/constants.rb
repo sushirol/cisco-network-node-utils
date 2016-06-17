@@ -34,6 +34,12 @@ module Cisco
     :yang_json,
   ]
 
+  NETCONF_SET_MODE = [
+    :merge,
+    :replace,
+    :delete
+    ]
+
   YANG_SET_MODE = [
     :merge_config,
     :replace_config,

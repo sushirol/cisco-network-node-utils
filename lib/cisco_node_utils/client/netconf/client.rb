@@ -56,14 +56,13 @@ class Cisco::Client::NETCONF < Cisco::Client
       raise Cisco::AuthenticationFailed, \
         'Netconf client creation failure: ' + e.message
     rescue Net::SSH::Disconnect
-      raise e
+      fail Cisco::YangError.new( error: e.message)
     rescue Errno::EHOSTUNREACH
-      raise e
+      fail Cisco::YangError.new( error: e.message)
     rescue Errno::ECONNREFUSED
-      raise Cisco::ConnectionRefused, \
-        'Netconf client creation failure: ' + e.message
+      fail Cisco::YangError.new( error: e.message)
     rescue Errno::ECONNRESET
-      raise e
+      fail Cisco::YangError.new( error: e.message)
     end
   end
 
@@ -81,21 +80,23 @@ class Cisco::Client::NETCONF < Cisco::Client
           context:     nil,
           values:      nil,
           **kwargs)
-    if values.empty?
+    if values.nil? || values.empty?
       return
     end
     begin
-      reply = @client.edit_config("candidate", "merge", values)
+      mode = kwargs[:mode] || :merge
+      fail ArgumentError unless Cisco::NETCONF_SET_MODE.include? mode
+      reply = @client.edit_config("candidate", mode.to_s, values)
       if reply.errors?
-        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+        fail Cisco::YangError.new( # rubocop:disable Style/RaiseArgs
                                  rejected_input: "apply of #{values}",
-                                 clierror:       reply.errors_as_string)
+                                 error:       reply.errors_as_string)
       end
       reply = @client.commit_changes()
       if reply.errors?
-        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+        fail Cisco::YangError.new( # rubocop:disable Style/RaiseArgs
                                  rejected_input: "commit of #{values}",
-                                 clierror:       reply.errors_as_string)
+                                 error:       reply.errors_as_string)
       end
     rescue => e
       raise_cisco(e)
@@ -109,9 +110,9 @@ class Cisco::Client::NETCONF < Cisco::Client
     begin
       reply = @client.get_config(command)
       if reply.errors?
-        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+        fail Cisco::YangError.new( # rubocop:disable Style/RaiseArgs
                                  rejected_input: command,
-                                 clierror:       reply.errors_as_string)
+                                 error:       reply.errors_as_string)
       else
         reply.config_as_string
       end

@@ -206,6 +206,23 @@ module Cisco
       @client.get(**kwargs)
     end
 
+    # Merge the specified config with the running config on the device.
+    # using netconf
+    def merge_netconf(config)
+      @client.set(data_format: :xml, values: [config], mode: :merge)
+    end
+
+    # Replace the running config on the device with the specified
+    # config using netconf client.
+    def replace_netconf(config)
+      @client.set(data_format: :xml, values: [config], mode: :replace)
+    end
+
+    # Retrieve config from the device for the specified path using netconf.
+    def get_netconf(xpath)
+      @client.get(data_format: :xml, command: xpath)
+    end
+
     # Merge the specified JSON YANG config with the running config on
     # the device.
     def merge_yang(yang)
