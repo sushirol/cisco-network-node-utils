@@ -261,11 +261,13 @@ module Cisco
           entries = get(command:     'show inventory',
                         data_format: :nxapi_structured)
           return entries['TABLE_inv']['ROW_inv'][0]['productid']
-        elsif @client.platform == :ios_xr
+        elsif @client.platform == :ios_xr2
           # No support for structured output for this command yet
           output = get(command:     'show inventory',
                        data_format: :cli)
           return /NAME: "Rack 0".*\nPID: (\S+)/.match(output)[1]
+        else 
+          return ""
         end
       end
     end

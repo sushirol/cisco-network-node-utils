@@ -171,6 +171,7 @@ module Netconf
         if rpc_reply.is_a?(String)
           @errors = Array.new
           @doc = REXML::Document.new(rpc_reply, ignore_whitespace_nodes: :all)
+          @doc.context[:attribute_quote] = :quote
           @doc.elements.each("rpc-reply/rpc-error") do |e|
             ht = Hash.new
             e.children.each { |ec| ht[ec.name] = ec.text }
@@ -434,14 +435,38 @@ red_vrf =
      <vrf>
       <vrf-name>red</vrf-name>
       <create></create>
+      <description>foo</description>
+      <vpn-id>
+        <vpn-oui>2</vpn-oui>
+        <vpn-index>2</vpn-index>
+      </vpn-id>
+      <remote-route-filter-disable></remote-route-filter-disable>
      </vrf>
    </vrfs>'
+
+rds = "<vrfs xmlns='http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg'>
+  <vrf xmlns:xc='urn:ietf:params:xml:ns:netconf:base:1.0' xc:operation='delete'>
+    <vrf-name>
+       BLUE 
+    </vrf-name>
+    <create/>
+    <description>
+       Generic external traffic 
+    </description>
+  </vrf>
+</vrfs>"
 
 delete_red_vrf =
   '<vrfs xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg">
      <vrf xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0" xc:operation="delete">
-      <vrf-name xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0" xc:operation="delete">red</vrf-name>
+      <vrf-name>red</vrf-name>
       <create></create>
+      <description>foo</description>
+      <vpn-id>
+        <vpn-oui>2</vpn-oui>
+        <vpn-index>2</vpn-index>
+      </vpn-id>
+      <remote-route-filter-disable></remote-route-filter-disable>
      </vrf>
    </vrfs>'
 
@@ -477,40 +502,21 @@ rescue => e
   puts "Attempted to connect and got #{e.class}/#{e}"
   exit
 end
-=begin
-reply = ncc.get(nil)
-reply.response.each do |re|
-  puts re
-end
-exit
 
-begin
-  #reply = ncc.get_config(filter)
-   reply = ncc.get_config(nil)
-rescue => e
-  puts "Attempted to get configuration and got #{e.class}/#{e}"
-  exit
-end
-
-reply.config.each { |c|
-  puts "config element"
-#  puts c
-}
-
-puts "config as string:\n #{reply.config_as_string}"
-
-exit
-
-
-
-# ... did not finish the begin/rescue/end pattern below, imagine it
-
-puts "config response from #{filter}"
+reply = ncc.edit_config("candidate", "merge", rds)
+puts "edit_config response errors"
 reply.errors.each do |e|
   puts "Error:"
   e.each { |k,v| puts "#{k} - #{v}" }
 end
-reply.config.each { |c| puts c }
+reply = ncc.commit_changes()
+puts "commit_changes response errors"
+reply.errors.each do |e|
+  puts "Error:"
+  e.each { |k,v| puts "#{k} - #{v}" }
+end
+
+exit
 
 # Add the red vrf
 reply = ncc.edit_config("candidate", "merge", red_vrf)
@@ -526,11 +532,6 @@ reply.errors.each do |e|
   e.each { |k,v| puts "#{k} - #{v}" }
 end
 
-# Show the config we just added
-reply = ncc.get_config(vrf_filter)
-reply.config.each { |c| puts c }
-
-# Delete the VRF
 reply = ncc.edit_config("candidate", "merge", delete_red_vrf)
 puts "edit_config response errors"
 reply.errors.each do |e|
@@ -544,26 +545,6 @@ reply.errors.each do |e|
   e.each { |k,v| puts "#{k} - #{v}" }
 end
 
-puts "Sleeping for 65 seconds to give you time to disable SSH on the router"
-sleep(65)
-
-# Show the config we just removed
-reply = ncc.get_config(vrf_filter)
-reply.config.each { |c| puts c }
-
-# Delete the VRF
-reply = ncc.edit_config("candidate", "merge", delete_red_vrf)
-puts "edit_config response errors"
-reply.errors.each do |e|
-  puts "Error:"
-  e.each { |k,v| puts "#{k} - #{v}" }
-end
-reply = ncc.commit_changes()
-puts "commit_changes response errors"
-reply.errors.each do |e|
-  puts "Error:"
-  e.each { |k,v| puts "#{k} - #{v}" }
-end
 
 
 =end

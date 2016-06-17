@@ -81,6 +81,9 @@ class Cisco::Client::NETCONF < Cisco::Client
           context:     nil,
           values:      nil,
           **kwargs)
+    if values.empty?
+      return
+    end
     begin
       reply = @client.edit_config("candidate", "merge", values)
       if reply.errors?
