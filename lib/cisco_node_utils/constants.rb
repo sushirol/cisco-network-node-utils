@@ -28,7 +28,15 @@ module Cisco
     :cli,
     # Structured data format specific to NX-API
     :nxapi_structured,
-    # TODO: :yang,
+    # Netconf xml
     :xml,
+    # YANG JSON
+    :yang_json,
+  ]
+
+  YANG_SET_MODE = [
+    :merge_config,
+    :replace_config,
+    :delete_config,
   ]
 end
