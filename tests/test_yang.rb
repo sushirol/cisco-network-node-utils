@@ -230,9 +230,9 @@ class TestYang < CiscoTestCase
       node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
     end
 
-    # for some reason replace_yang does not have the same error checking
-    # that merge_yang does, so this just fails quietly
-    node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": }')
+    assert_raises(Cisco::CiscoError) do
+      node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": }')
+    end
   end
 
   def test_merge_diff
