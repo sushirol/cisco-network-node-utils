@@ -65,7 +65,7 @@ class TestNetconf < TestCase
     e = assert_raises Errno::EHOSTUNREACH do
       Cisco::Client::NETCONF.new(**env)
     end
-    assert_equal('No route to host - connect(2)',
+    assert_match('No route to host - connect(2)',
                  e.message)
   end
 

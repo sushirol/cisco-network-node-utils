@@ -83,7 +83,17 @@ class Cisco::Client::NETCONF < Cisco::Client
           **kwargs)
     begin
       reply = @client.edit_config("candidate", "merge", values)
+      if reply.errors?
+        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+                                 rejected_input: "apply of #{values}",
+                                 clierror:       reply.errors_as_string)
+      end
       reply = @client.commit_changes()
+      if reply.errors?
+        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+                                 rejected_input: "commit of #{values}",
+                                 clierror:       reply.errors_as_string)
+      end
     rescue => e
       raise_cisco(e)
     end
@@ -95,7 +105,13 @@ class Cisco::Client::NETCONF < Cisco::Client
           value:       nil)
     begin
       reply = @client.get_config(command)
-      reply.config_as_string
+      if reply.errors?
+        fail Cisco::CliError.new( # rubocop:disable Style/RaiseArgs
+                                 rejected_input: command,
+                                 clierror:       reply.errors_as_string)
+      else
+        reply.config_as_string
+      end
     rescue => e
       puts e
       raise_cisco(e)

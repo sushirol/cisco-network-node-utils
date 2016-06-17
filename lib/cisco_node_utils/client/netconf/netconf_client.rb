@@ -14,6 +14,8 @@ module Netconf
       ssh_args[:password] ||= @args[:password]
       ssh_args[:port] = @args[:port]
       ssh_args[:number_of_password_prompts] = 0
+      # Debugs, yay
+      # ssh_args[:verbose] = :debug
 
       @connection = Net::SSH.start(@args[:target],
                                    @args[:username],
@@ -183,6 +185,16 @@ module Netconf
       public
       def errors
         @errors
+      end
+
+      def errors_as_string
+        s = StringIO.new
+        @errors.each do |e|
+          e.each do |k, v|
+            s.write("#{k} => #{v}\n")
+          end
+        end
+        s.string
       end
 
       def errors?
