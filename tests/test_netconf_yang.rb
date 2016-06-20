@@ -497,59 +497,80 @@ class TestNetconf < CiscoTestCase
     node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": }')
   end
 
-  def notest_merge_diff
+  def test_merge_diff
     # ensure we think that a merge is needed (in-sinc = false)
-    refute(Netconf.insync_for_merge(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+    refute(Cisco::Netconf.insync_for_merge(BLUE_VRF, 
+                                           node.get(command: PATH_VRFS)), 
+           "Expected not in-sync")
 
-    node.merge_yang(BLUE_VRF)  # create the blue VRF
+    node.set(context: nil, values: BLUE_VRF, mode: :merge)
 
+    path_vrfs = node.get(command: PATH_VRFS)
     # ensure we think that a merge is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_merge(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
-
+    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF, 
+                                           path_vrfs),
+           "Expected in-sync")
 
     # ensure we think that the merge is needed (in-sinc = false)
-    refute(Netconf.insync_for_merge(RED_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+    refute(Cisco::Netconf.insync_for_merge(RED_VRF,
+                                           path_vrfs),
+           "Expected not in-sync")
 
-    node.merge_yang(RED_VRF)  # create the red VRF
+    node.set(context: nil, values: RED_VRF, mode: :merge)
 
     # ensure we think that a merge is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_merge(RED_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    assert(Cisco::Netconf.insync_for_merge(RED_VRF,
+                                           node.get(command: PATH_VRFS)),
+           "Expected in-sync")
 
-    node.merge_yang(GREEN_VRF) # create green VRF
+    node.set(context: nil, values: GREEN_VRF, mode: :merge)
     # ensure we think that a merge is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_merge(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    assert(Cisco::Netconf.insync_for_merge(GREEN_VRF,
+                                           node.get(command: PATH_VRFS)),
+           "Expected in-sync")
   end
 
-  def notest_replace_diff
+  def test_replace_diff
     # ensure we think that a merge is needed (in-sinc = false)
-    refute(Netconf.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+    refute(Cisco::Netconf.insync_for_replace(BLUE_VRF,
+                                             node.get(command: PATH_VRFS)), "Expected not in-sync")
 
-    node.replace_yang(BLUE_VRF)  # create the blue VRF
+    node.set(context: nil, values: BLUE_VRF, mode: :replace)  # create the blue VRF
     # ensure we think that a replace is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    assert(Cisco::Netconf.insync_for_replace(BLUE_VRF,
+                                             node.get(command: PATH_VRFS)), "Expected in-sync")
 
-    node.replace_yang(RED_VRF)  # create the red VRF
+    node.set(context: nil, values: RED_VRF, mode: :replace)  # create the red VRF
     # ensure we think that a replace is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_replace(RED_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    assert(Cisco::Netconf.insync_for_replace(RED_VRF,
+                                             node.get(command: PATH_VRFS)), "Expected in-sync")
 
-    node.replace_yang(GREEN_VRF) # create green VRF
+    node.set(context: nil, values: GREEN_VRF, mode: :replace) # create green VRF
     # ensure we think that a replace is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_replace(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    assert(Cisco::Netconf.insync_for_replace(GREEN_VRF,
+                                             node.get(command: PATH_VRFS)), "Expected in-sync")
 
-    node.merge_yang(BLUE_VRF)
-
+    node.set(context: nil, values: BLUE_VRF, mode: :merge)
+    path_vrfs = node.get(command: PATH_VRFS)
     # ensure we think that a replace is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_replace(BLUE_GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected in sync")
+    assert(Cisco::Netconf.insync_for_replace(BLUE_GREEN_VRF,
+                                             path_vrfs), "Expected in sync")
     # ensure we think that a replace is needed (in-sinc = true)
-    refute(Netconf.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected not in sync")
-    refute(Netconf.insync_for_replace(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected not in sync")
+    refute(Cisco::Netconf.insync_for_replace(BLUE_VRF,
+                                             path_vrfs), "Expected not in sync")
+    refute(Cisco::Netconf.insync_for_replace(GREEN_VRF,
+                                             path_vrfs), "Expected not in sync")
 
-    node.replace_yang(BLUE_VRF)
+    node.set(context: nil, values: BLUE_VRF, mode: :replace)
+    path_vrfs = node.get(command: PATH_VRFS)
     # ensure we think that a replace is NOT needed (in-sinc = true)
-    assert(Netconf.insync_for_replace(BLUE_VRF, node.get_yang(PATH_VRFS)), "Expected in-sync")
+    assert(Cisco::Netconf.insync_for_replace(BLUE_VRF,
+                                             path_vrfs), "Expected in-sync")
     # ensure we think that a replace is needed (in-sinc = true)
-    refute(Netconf.insync_for_replace(GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
-    refute(Netconf.insync_for_replace(BLUE_GREEN_VRF, node.get_yang(PATH_VRFS)), "Expected not in-sync")
+    refute(Cisco::Netconf.insync_for_replace(GREEN_VRF,
+                                             path_vrfs), "Expected not in-sync")
+    refute(Cisco::Netconf.insync_for_replace(BLUE_GREEN_VRF,
+                                             path_vrfs), "Expected not in-sync")
   end
 
   def test_merge_leaves
