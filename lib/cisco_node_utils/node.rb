@@ -209,13 +209,13 @@ module Cisco
     # Merge the specified config with the running config on the device.
     # using netconf
     def merge_netconf(config)
-      @client.set(data_format: :xml, values: [config], mode: :merge)
+      @client.set(data_format: :xml, values: config, mode: :merge)
     end
 
     # Replace the running config on the device with the specified
     # config using netconf client.
     def replace_netconf(config)
-      @client.set(data_format: :xml, values: [config], mode: :replace)
+      @client.set(data_format: :xml, values: config, mode: :replace)
     end
 
     # Retrieve config from the device for the specified path using netconf.
