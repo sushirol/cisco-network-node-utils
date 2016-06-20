@@ -489,12 +489,13 @@ vrfs_config =
   </vrfs>'
 
 vrf_filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
+srlg_filter = '<infra-rsi-cfg:srlg xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
 
 login = { :target => '192.168.1.16',
   :username => 'root',
   :password => 'lab'}
-filter = '<infra-rsi-cfg:vrfs xmlns:infra-rsi-cfg="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
-#filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg"/>'
+#filter = vrf_filter
+filter = srlg_filter
 ncc = Netconf::Client.new(login)
 begin
   ncc.connect
@@ -502,6 +503,10 @@ rescue => e
   puts "Attempted to connect and got #{e.class}/#{e}"
   exit
 end
+
+reply = ncc.get_config(srlg_filter)
+puts reply.config_as_string
+exit
 
 reply = ncc.edit_config("candidate", "merge", rds)
 puts "edit_config response errors"
@@ -546,5 +551,5 @@ reply.errors.each do |e|
 end
 
 
-
 =end
+
