@@ -56,7 +56,6 @@ module Netconf
     end
 
     def receive (parser)
-      ret = []
       continue = true
 
       @channel.on_data do |ch, data|
@@ -64,27 +63,19 @@ module Netconf
         # If parser returns :stop, we take that as a hint to stop
         # expecting data for this message.
         #
-        # If parser returns :continue, then we presume the parser
-        # is collecting data segments and looking for enough to
-        # parse a full "thing"
-        #
-        # If parser returns something else, then we presume the
-        # parser wants us to hold onto it for them, we'll
-        # add it to an array and return it when done.
+        # If parser returns :continue (or anything other than :stop),
+        # then we presume the parser is collecting data segments
+        # and looking for enough to parse a full "thing"
         continue = false if result == :stop
-        if result != :continue && result != :stop
-          ret << result
-        end
       end
 
       @channel.on_extended_data do |ch, type, data|
         continue = false
       end
 
-      # Loop is executed until on_data sets continue to false
+      # Loop is executed until on_data or on_extended_data 
+      # sets continue to false
       @connection.loop {continue}
-
-      ret
     end
   end # class SSH
 
@@ -273,43 +264,72 @@ module Netconf
 
     private
 
+    # Implements a parser for RFC 6242 Netconf/SSH Hello
+    # packets.  (Should also work for Netconf 1.0, untested
+    # for that purpose).
     def hello_parser(buff)
-      lambda do |data|
-        md = /(?=\]\]>\]\])/m.match(data)
-        if md.nil?
+      buffering_data = StringIO.new
+      parser = lambda do |data|
+        data = buffering_data.string + data
+        buffering_data.reopen("")
+        i = data.index(']')
+        if i.nil?
           buff.write(data)
           :continue
         else
-          md = /^(?=.*?\b.*\b)((?!\]\]>\]\]).)*$/m.match(data)
-          # NB: Using anything except this includes the "]]>]]>" for some reason, revisit
-          buff.write("#{md}")
-          :stop
+          if i != 0
+            buff.write(data[0..(i-1)])
+            parser.call(data[i..-1])
+          else
+            if data.length >= 5
+              if data[0..4] == "]]>]]"
+                :stop
+              else
+                buff.write("]")
+                parser.call(data[1..-1])
+              end
+            else
+              buffering_data.write(data)
+              :continue
+            end
+          end
         end
+      end
+      parser
+    end
+
+    def chunk_start_partially_parses?(data)
+      case data.length
+      when 1
+        data == "\n"
+      when 2
+        data == "\n#"
+      when 3..12
+        /\n#[1-9][0-9]{,9}$/m.match(data) != nil
+      else
+        false
       end
     end
 
+    # Implements a parser for RFC 6242 Netconf/SSH framing.
     def netconf_1_1_parser(buff)
       state = :scanning_for_LF_HASH
       bytes_left = 0
       buffering_data = StringIO.new
-
       parser = lambda do |data|
-        data = data + buffering_data.string
-        buffering_data.truncate(0)
+        data = buffering_data.string + data
+        buffering_data.reopen("")
         case state
         when :scanning_for_LF_HASH
           if data.length >= 3
-            md = /\n#/m.match(data)
-            if data[0-1] == "\n#"
-              raise ParseException, "expected LF HASH, but didn't get one with #{data}"
+            if data[0..1] != "\n#"
+              fail ParseException, "expected LF HASH, but didn't get one with #{data}"
             else
               if data[2] == "#"
                 state = :scanning_for_end_of_chunks
               else
                 state = :scanning_for_chunk_start
               end
-              # NB: Not pruning data here, should change it to do so since
-              #     the first two bytes have been parsed.
               parser.call(data)
             end
           else
@@ -317,15 +337,28 @@ module Netconf
             :continue
           end
         when :scanning_for_chunk_start
-          md = /\n#(\d+)\n/m.match(data)
+          # RFC 6242
+          #  The chunk-size field is a string of decimal digits indicating the
+          #  number of octets in chunk-data.  Leading zeros are prohibited, and
+          #  the maximum allowed chunk-size value is 4294967295.
+          #
+          md = /\n#([1-9][0-9]{,9})\n/m.match(data)
           if md.nil?
-            raise ParseException, "expected match for chunk_start, didn't get one with #{data}"
+            if chunk_start_partially_parses?(data)
+              buffering_data.write(data)
+              :continue
+            else
+              fail ParseException, "expected match for chunk_start, didn't get one with #{data}"
+            end
           else
             # Jump to scanning_for_chunk_data state
             # Set bytes_left to value of chunk size
             state = :scanning_for_chunk_data
             bytes_left = Integer("#{md[1]}")
-
+            if bytes_left > 4294967295
+              fail ParseException, "chunk size #{bytes_left} is larger than 4294967295"
+            end
+            
             # Handle remaining data
             parser.call(data[md[1].length + 3..-1])
           end
@@ -342,14 +375,19 @@ module Netconf
             :continue
           end
         when :scanning_for_end_of_chunks
-          md = /\n##\n/m.match(data)
-          if md.nil?
-            raise ParseException, "unexpected: Did not receive the end of chunks sequence LF HASH HASH LF"
+          if data.length >= 4
+            md = /\n##\n/m.match(data)
+            if md.nil?
+              fail ParseException, "unexpected: Did not receive the end of chunks sequence LF HASH HASH LF in #{data}"
+            else
+              :stop
+            end
           else
-            :stop
+            buffering_data.write(data)
+            :continue
           end
         else
-          raise InternalError, "unexpected state: #{state}"
+          fail InternalError, "unexpected state: #{state}"
         end # End case
       end # End Lambda named parser
       return parser
@@ -374,7 +412,7 @@ module Netconf
         # Errno::EHOSTUNREACH
         # Errno::ECONNREFUSED
         @ssh = nil
-        raise e
+        fail e
       end
     end
 
@@ -392,7 +430,7 @@ module Netconf
         tx_request_and_rx_reply_internal(msg)
       rescue Net::SSH::Disconnect => e
         if @options.key?(:no_reconnect)
-          raise e
+          fail e
         else
           connect_internal
           tx_request_and_rx_reply_internal(msg)
@@ -514,15 +552,18 @@ login = { :target => '192.168.1.16',
   :password => 'lab'}
 #filter = vrf_filter
 filter = srlg_filter
+puts "NC client starting"
 ncc = Netconf::Client.new(login)
 begin
+  puts "NC client connecting"
   ncc.connect
 rescue => e
   puts "Attempted to connect and got #{e.class}/#{e}"
   exit
 end
-
-reply = ncc.get_config(srlg_filter)
+puts "NC client connected"
+#reply = ncc.get_config(vrf_filter)
+reply = ncc.get_config(nil)
 puts reply.config_as_string
 exit
 
@@ -567,7 +608,6 @@ reply.errors.each do |e|
   puts "Error:"
   e.each { |k,v| puts "#{k} - #{v}" }
 end
-
 
 =end
 

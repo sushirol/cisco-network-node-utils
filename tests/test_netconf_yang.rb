@@ -19,7 +19,7 @@
 
 require 'rexml/document'
 require_relative 'ciscotest'
-require_relative '../lib/cisco_node_utils/netconf'
+require_relative '../lib/cisco_node_utils/client/netconf/netconf'
 
 # TestNetconf- Minitest for Netconf class
 class TestNetconf < CiscoTestCase
@@ -438,6 +438,17 @@ class TestNetconf < CiscoTestCase
                                            path_srlg),
            "Expected in-sync")
     clear_srlg
+  end
+
+  def test_errors
+    assert_raises(Cisco::YangError) do
+      node.get(command: '<foo bar=""/>')
+    end
+    assert_raises(Cisco::YangError) do
+      node.get(command: '</foo>')
+    end
+
+    assert_equal(nil, node.get(command: "foo bar"))
   end
 
   def notest_errors
