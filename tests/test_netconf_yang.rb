@@ -31,7 +31,7 @@ class TestNetconf < CiscoTestCase
     <create/>
   </vrf>
 </vrfs>'
-
+  
   RED_VRF = '<vrfs xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg">
   <vrf>
     <vrf-name>RED</vrf-name>
@@ -54,6 +54,24 @@ class TestNetconf < CiscoTestCase
   </vrf>
   <vrf>
     <vrf-name>GREEN</vrf-name>
+    <create/>
+  </vrf>
+</vrfs>'
+
+  BLUE_GREEN_DELETE_RED_VRF = '<vrfs xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg">
+  <vrf>
+    <vrf-name>BLUE</vrf-name>
+    <description>Generic external traffic</description>
+    <create/>
+  </vrf>
+  <vrf>
+    <vrf-name>GREEN</vrf-name>
+    <create/>
+  </vrf>
+  <vrf xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0" xc:operation="delete">
+    <vrf-name>
+      RED
+    </vrf-name>
     <create/>
   </vrf>
 </vrfs>'
@@ -451,122 +469,92 @@ class TestNetconf < CiscoTestCase
     assert_equal(nil, node.get(command: "foo bar"))
   end
 
-  def notest_errors
-    # === test get_yang ===========
+  def test_delete
+    # Delete via inserting delete tag on RED
+    node.set(context: nil, values: BLUE_GREEN_VRF, mode: :merge)
+    node.set(context: nil, values: RED_VRF, mode: :merge)
+    node.set(context: nil,
+             values: format_vrfs_for_delete(RED_VRF),
+             mode: :merge)
+    # After removing RED vrf, BLUE and GREEN should remain
+    path_vrfs = node.get(command: PATH_VRFS)
+    refute(path_vrfs.match('RED'),
+           "After removing RED vrf, it should not be present")
+    assert(Cisco::Netconf.insync_for_replace(path_vrfs,
+                                             BLUE_GREEN_DELETE_RED_VRF),
+           "Expected in-sync #{path_vrfs} and #{BLUE_GREEN_DELETE_RED_VRF}")
 
-    # lexical error: invalid char in json text
-    assert_raises(Cisco::YangError) { node.get_yang('aabbcc') }
-
-    # parse error: object key and value must be separated by a colon
-    assert_raises(Cisco::YangError) { node.get_yang('{"aabbcc"}') }
-
-    # unknown-namespace
-    assert_raises(Cisco::ClientError) { node.get_yang('{"aabbcc": "foo"}') }
-
-    # unknown-element
-    assert_raises(Cisco::ClientError) {
-      node.get_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
-    }
-
-    # parse error: premature EOF
-    assert_raises(Cisco::YangError) { node.get_yang('{') }
-
-    # parse error: invalid object key (must be a string)
-    assert_raises(Cisco::YangError) { node.get_yang('{: "foo"}') }
-
-
-    # === test merge_yang ===========
-
-    # Request is not wellformed
-    assert_raises(Cisco::ClientError) { node.merge_yang('aabbcc') }
-
-    # unknown-element
-    assert_raises(Cisco::ClientError) {
-      node.merge_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
-    }
-
-    # bad-element
-    assert_raises(Cisco::ClientError) {
-      node.merge_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": "foo"}')
-    }
-
-    # missing-element
-    assert_raises(Cisco::YangError) {
-      node.merge_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": {"vrf":[{}]}}')
-    }
-
-
-    # === test replace_yang ===========
-
-    # unknown-namespace
-    assert_raises(Cisco::ClientError) {
-      node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:aabbcc": "foo"}')
-    }
-
-    # for some reason replace_yang does not have the same error checking
-    # that merge_yang does, so this just fails quietly
-    node.replace_yang('{"Cisco-IOS-XR-infra-rsi-cfg:vrfs": }')
+    # Delete via replace
+    node.set(context: nil, values: RED_VRF, mode: :merge)
+    node.set(context: nil, values: BLUE_GREEN_VRF, mode: :replace)
+    # After re-inserted RED_VRF, replace with just BLUE and GREEN removes RED
+    path_vrfs = node.get(command: PATH_VRFS)
+    refute(path_vrfs.match('RED'),
+           "After removing RED vrf, it should not be present")
+    assert(Cisco::Netconf.insync_for_merge(path_vrfs,
+                                           BLUE_GREEN_DELETE_RED_VRF),
+           "Expected in-sync #{path_vrfs} and #{BLUE_GREEN_DELETE_RED_VRF}")
   end
 
   def test_merge_diff
-    # ensure we think that a merge is needed (in-sinc = false)
-    refute(Cisco::Netconf.insync_for_merge(BLUE_VRF,
-                                           node.get(command: PATH_VRFS)),
+    # ensure we think that a merge is needed (in-sync = false)
+    refute(Cisco::Netconf.insync_for_merge(BLUE_VRF, 
+                                           node.get(command: PATH_VRFS)), 
            "Expected not in-sync")
 
     node.set(context: nil, values: BLUE_VRF, mode: :merge)
 
     path_vrfs = node.get(command: PATH_VRFS)
-    # ensure we think that a merge is NOT needed (in-sinc = true)
-    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF,
+    # ensure we think that a merge is NOT needed (in-sync = true)
+    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF, 
                                            path_vrfs),
            "Expected in-sync")
 
-    # ensure we think that the merge is needed (in-sinc = false)
+    # ensure we think that the merge is needed (in-sync = false)
     refute(Cisco::Netconf.insync_for_merge(RED_VRF,
                                            path_vrfs),
            "Expected not in-sync")
 
     node.set(context: nil, values: RED_VRF, mode: :merge)
 
-    # ensure we think that a merge is NOT needed (in-sinc = true)
+    # ensure we think that a merge is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_merge(RED_VRF,
                                            node.get(command: PATH_VRFS)),
            "Expected in-sync")
 
     node.set(context: nil, values: GREEN_VRF, mode: :merge)
-    # ensure we think that a merge is NOT needed (in-sinc = true)
+    # ensure we think that a merge is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_merge(GREEN_VRF,
                                            node.get(command: PATH_VRFS)),
            "Expected in-sync")
   end
 
   def test_replace_diff
-    # ensure we think that a merge is needed (in-sinc = false)
+    # ensure we think that a merge is needed (in-sync = false)
     refute(Cisco::Netconf.insync_for_replace(BLUE_VRF,
                                              node.get(command: PATH_VRFS)), "Expected not in-sync")
 
     node.set(context: nil, values: BLUE_VRF, mode: :replace)  # create the blue VRF
-    # ensure we think that a replace is NOT needed (in-sinc = true)
+    # ensure we think that a replace is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_replace(BLUE_VRF,
                                              node.get(command: PATH_VRFS)), "Expected in-sync")
 
     node.set(context: nil, values: RED_VRF, mode: :replace)  # create the red VRF
-    # ensure we think that a replace is NOT needed (in-sinc = true)
+    # ensure we think that a replace is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_replace(RED_VRF,
                                              node.get(command: PATH_VRFS)), "Expected in-sync")
 
     node.set(context: nil, values: GREEN_VRF, mode: :replace) # create green VRF
-    # ensure we think that a replace is NOT needed (in-sinc = true)
+    # ensure we think that a replace is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_replace(GREEN_VRF,
                                              node.get(command: PATH_VRFS)), "Expected in-sync")
 
     node.set(context: nil, values: BLUE_VRF, mode: :merge)
     path_vrfs = node.get(command: PATH_VRFS)
-    # ensure we think that a replace is NOT needed (in-sinc = true)
+    # ensure we think that a replace is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_replace(BLUE_GREEN_VRF,
                                              path_vrfs), "Expected in sync")
-    # ensure we think that a replace is needed (in-sinc = true)
+    # ensure we think that a replace is needed (in-sync = true)
     refute(Cisco::Netconf.insync_for_replace(BLUE_VRF,
                                              path_vrfs), "Expected not in sync")
     refute(Cisco::Netconf.insync_for_replace(GREEN_VRF,
@@ -574,10 +562,10 @@ class TestNetconf < CiscoTestCase
 
     node.set(context: nil, values: BLUE_VRF, mode: :replace)
     path_vrfs = node.get(command: PATH_VRFS)
-    # ensure we think that a replace is NOT needed (in-sinc = true)
+    # ensure we think that a replace is NOT needed (in-sync = true)
     assert(Cisco::Netconf.insync_for_replace(BLUE_VRF,
                                              path_vrfs), "Expected in-sync")
-    # ensure we think that a replace is needed (in-sinc = true)
+    # ensure we think that a replace is needed (in-sync = true)
     refute(Cisco::Netconf.insync_for_replace(GREEN_VRF,
                                              path_vrfs), "Expected not in-sync")
     refute(Cisco::Netconf.insync_for_replace(BLUE_GREEN_VRF,
@@ -589,8 +577,8 @@ class TestNetconf < CiscoTestCase
     node.set(context: nil, values: BLUE_VRF_PROPERTIES1, mode: :merge)
 
     # ensure that new properties are replaced by old.
-    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF_PROPERTIES2,
-                                           node.get(command: PATH_VRFS)),
+    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF_PROPERTIES2, 
+                                           node.get(command: PATH_VRFS)), 
            "Expected in-sync")
 
     # replace description and vpn-id
@@ -605,8 +593,8 @@ class TestNetconf < CiscoTestCase
     node.set(context: nil, values: BLUE_VRF_PROPERTIES1, mode: :replace)
 
     # ensure that new properties are replaced by old.
-    assert(Cisco::Netconf.insync_for_replace(BLUE_VRF_PROPERTIES1,
-                                             node.get(command: PATH_VRFS)),
+    assert(Cisco::Netconf.insync_for_replace(BLUE_VRF_PROPERTIES1, 
+                                             node.get(command: PATH_VRFS)), 
            "Expected in-sync")
 
     # replace description and vpn-id
