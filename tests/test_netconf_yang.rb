@@ -19,7 +19,7 @@
 
 require 'rexml/document'
 require_relative 'ciscotest'
-require_relative '../lib/cisco_node_utils/netconf'
+require_relative '../lib/cisco_node_utils/client/netconf/netconf'
 
 # TestNetconf- Minitest for Netconf class
 class TestNetconf < CiscoTestCase
@@ -31,7 +31,7 @@ class TestNetconf < CiscoTestCase
     <create/>
   </vrf>
 </vrfs>'
-  
+
   RED_VRF = '<vrfs xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-cfg">
   <vrf>
     <vrf-name>RED</vrf-name>
@@ -499,15 +499,15 @@ class TestNetconf < CiscoTestCase
 
   def test_merge_diff
     # ensure we think that a merge is needed (in-sinc = false)
-    refute(Cisco::Netconf.insync_for_merge(BLUE_VRF, 
-                                           node.get(command: PATH_VRFS)), 
+    refute(Cisco::Netconf.insync_for_merge(BLUE_VRF,
+                                           node.get(command: PATH_VRFS)),
            "Expected not in-sync")
 
     node.set(context: nil, values: BLUE_VRF, mode: :merge)
 
     path_vrfs = node.get(command: PATH_VRFS)
     # ensure we think that a merge is NOT needed (in-sinc = true)
-    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF, 
+    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF,
                                            path_vrfs),
            "Expected in-sync")
 
@@ -578,8 +578,8 @@ class TestNetconf < CiscoTestCase
     node.set(context: nil, values: BLUE_VRF_PROPERTIES1, mode: :merge)
 
     # ensure that new properties are replaced by old.
-    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF_PROPERTIES2, 
-                                           node.get(command: PATH_VRFS)), 
+    assert(Cisco::Netconf.insync_for_merge(BLUE_VRF_PROPERTIES2,
+                                           node.get(command: PATH_VRFS)),
            "Expected in-sync")
 
     # replace description and vpn-id
@@ -594,8 +594,8 @@ class TestNetconf < CiscoTestCase
     node.set(context: nil, values: BLUE_VRF_PROPERTIES1, mode: :replace)
 
     # ensure that new properties are replaced by old.
-    assert(Cisco::Netconf.insync_for_replace(BLUE_VRF_PROPERTIES1, 
-                                             node.get(command: PATH_VRFS)), 
+    assert(Cisco::Netconf.insync_for_replace(BLUE_VRF_PROPERTIES1,
+                                             node.get(command: PATH_VRFS)),
            "Expected in-sync")
 
     # replace description and vpn-id
