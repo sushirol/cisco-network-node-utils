@@ -440,6 +440,17 @@ class TestNetconf < CiscoTestCase
     clear_srlg
   end
 
+  def test_errors
+    assert_raises(Cisco::YangError) do
+      node.get(command: '<foo bar=""/>')
+    end
+    assert_raises(Cisco::YangError) do
+      node.get(command: '</foo>')
+    end
+
+    assert_equal(nil, node.get(command: "foo bar"))
+  end
+
   def notest_errors
     # === test get_yang ===========
 

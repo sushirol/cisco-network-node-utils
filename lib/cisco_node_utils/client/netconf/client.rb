@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'rexml/document'
 require_relative '../client'
 require_relative 'netconf_client'
 
@@ -107,19 +108,30 @@ class Cisco::Client::NETCONF < Cisco::Client
           command:     nil,
           context:     nil,
           value:       nil)
+
+    begin
+      doc = REXML::Document.new(command)
+    rescue => e
+      fail Cisco::YangError.new(rejected_input: command,
+                                error: e.message)
+    end
+
+    if doc.root == nil
+      return nil
+    end
+
     begin
       reply = @client.get_config(command)
+      
       if reply.errors?
-        fail Cisco::YangError.new( # rubocop:disable Style/RaiseArgs
-                                 rejected_input: command,
-                                 error:       reply.errors_as_string)
+        fail Cisco::YangError.new(# rubocop:disable Style/RaiseArgs
+                                  rejected_input: command,
+                                  error: reply.errors_as_string)
       else
         reply.config_as_string
       end
     rescue => e
-      puts e
       raise_cisco(e)
     end
   end
-
 end
