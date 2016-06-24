@@ -154,7 +154,17 @@ class Cisco::Client::NETCONF < Cisco::Client
   end
 
   def get_host_name
-    "foo"
+    filter = '<host-name xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-shellutil-cfg"/>'
+    reply = @client.get_config(filter)
+    if reply.errors?
+      ""
+    else
+      name = ""
+      reply.response.elements.each("rpc-reply/data/host-name") do |e|
+        name = e.text
+      end
+      name
+    end
   end
 
   def get_system
