@@ -108,7 +108,6 @@ class Cisco::Client::NETCONF < Cisco::Client
           command:     nil,
           context:     nil,
           value:       nil)
-
     begin
       doc = REXML::Document.new(command)
     rescue => e
@@ -134,4 +133,54 @@ class Cisco::Client::NETCONF < Cisco::Client
       raise_cisco(e)
     end
   end
+
+  def wants_cmd_ref
+    false
+  end
+
+  def inventory    
+    if !@inventory
+      filter = '<inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-invmgr-oper"/>'
+      reply = @client.get(filter)
+      if !reply.errors?
+        @inventory = reply.response
+      end
+    end
+    @inventory
+  end
+
+  def get_domain_name
+    "foo"
+  end
+
+  def get_host_name
+    "foo"
+  end
+
+  def get_system
+    "foo"
+  end
+
+  def get_product_serial_number
+    "foo"
+  end
+
+  def get_product_id
+    return "" if !inventory
+    product_id = ""
+    inventory.elements.each("rpc-reply/data/inventory/racks/rack/attributes/inv-basic-bag/model-name") do |e|
+      product_id = e.text
+    end
+    product_id
+  end
+
+  def get_software_revision
+    return "" if !inventory
+    software_revision = ""
+    inventory.elements.each("rpc-reply/data/inventory/racks/rack/attributes/inv-basic-bag/software-revision") do |e|
+      software_revision = e.text
+    end
+    software_revision
+  end
+
 end

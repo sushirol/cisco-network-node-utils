@@ -114,7 +114,9 @@ module Netconf
       body =
         "<rpc message-id=\"#{message_id}\" xmlns=#{DEFAULT_NAMESPACE}>\n" +
         "  <get>\n" +
+        "    <filter>\n" +
         "    #{nc_filter}\n" +
+        "    </filter>\n" +
         "  </get>\n" +
         "</rpc>\n"
       format_msg(body)
@@ -451,7 +453,7 @@ module Netconf
     end
 
     def get(filter)
-      msg = Format::format_get_config_msg(@message_id, filter)
+      msg = Format::format_get_msg(@message_id, filter)
       RpcResponse.new(tx_request_and_rx_reply(msg))
     end
 
@@ -552,20 +554,78 @@ login = { :target => '192.168.1.16',
   :password => 'lab'}
 #filter = vrf_filter
 filter = srlg_filter
-puts "NC client starting"
+#puts "NC client starting"
 ncc = Netconf::Client.new(login)
 begin
-  puts "NC client connecting"
+  #puts "NC client connecting"
   ncc.connect
 rescue => e
   puts "Attempted to connect and got #{e.class}/#{e}"
   exit
 end
+
+require 'pry'
+require 'pry-nav'
+
+#filter = '<inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-invmgr-oper"/>'
+#filter = '<inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-invmgr-oper-sub1"/>'
+filter = '<inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-invmgr-oper"/>'
+reply = ncc.get(filter)
+revision = nil
+formatter = REXML::Formatters::Pretty.new()
+o = StringIO.new
+#formatter.write(reply.response, o)
+#puts o.string
+#exit
+#binding.pry
+#reply.response.elements.each("rpc-reply/data/inventory/racks/rack/entity/slot/tsi1s/tsi1/attributes/inv-basic-bag/model-name") do |e|
+reply.response.elements.each("rpc-reply/data/inventory/racks/rack/attributes/inv-basic-bag/*") do |e|
+  puts "name: #{e.name}, text: #{e.text}"
+
+end
+exit
+name = ""
+reply.response.elements.each("rpc-reply/data/inventory/racks/rack/attributes/inv-basic-bag/name") do |e|
+  name = e.text
+end
+product_id = ""
+reply.response.elements.each("rpc-reply/data/inventory/racks/rack/attributes/inv-basic-bag/model-name") do |e|
+  product_id = e.text
+end
+software_revision = ""
+reply.response.elements.each("rpc-reply/data/inventory/racks/rack/attributes/inv-basic-bag/software-revision") do |e|
+  software_revision = e.text
+end
+
+puts name
+puts product_id
+puts software_revision
+exit
+
+#filter = '<srlg xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-infra-rsi-oper"/>'
+filter = '<inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-invmgr-oper"/>'
+reply = ncc.get(filter)
+#binding.pry
+formatter = REXML::Formatters::Pretty.new()
+o = StringIO.new
+#reply.response.elements.each("rpc-reply/data/inventory/racks/*") do |e|
+revision = nil
+reply.response.elements.each("rpc-reply/data/inventory/racks/rack/entity/slot/tsi1s/tsi1/attributes/inv-basic-bag/software-revision") do |e|
+  if e.text != nil
+    revision = e.text
+  end
+  #formatter.write(e, o)
+end
+puts revision
+#puts o.string
+exit
+
 puts "NC client connected"
 #reply = ncc.get_config(vrf_filter)
 reply = ncc.get_config(nil)
 puts reply.config_as_string
 exit
+
 
 reply = ncc.edit_config("candidate", "merge", rds)
 puts "edit_config response errors"

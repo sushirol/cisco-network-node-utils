@@ -158,9 +158,11 @@ module Cisco
     def initialize
       @client = Cisco::Client.create
       @cmd_ref = nil
-      @cmd_ref = CommandReference.new(product:      product_id,
-                                      platform:     @client.platform,
-                                      data_formats: @client.data_formats)
+      if @client.wants_cmd_ref
+        @cmd_ref = CommandReference.new(product:      product_id,
+                                        platform:     @client.platform,
+                                        data_formats: @client.data_formats)
+      end
       cache_flush
     end
 
@@ -268,19 +270,7 @@ module Cisco
       if @cmd_ref
         return config_get('inventory', 'productid')
       else
-        # We use this function to *find* the appropriate CommandReference
-        if @client.platform == :nexus
-          entries = get(command:     'show inventory',
-                        data_format: :nxapi_structured)
-          return entries['TABLE_inv']['ROW_inv'][0]['productid']
-        elsif @client.platform == :ios_xr2
-          # No support for structured output for this command yet
-          output = get(command:     'show inventory',
-                       data_format: :cli)
-          return /NAME: "Rack 0".*\nPID: (\S+)/.match(output)[1]
-        else
-          return ""
-        end
+        @client.get_product_id
       end
     end
 
@@ -291,17 +281,29 @@ module Cisco
 
     # @return [String] such as "FOC1722R0ET"
     def product_serial_number
-      config_get('inventory', 'serialnum')
+      if @cmd_ref
+        config_get('inventory', 'serialnum')
+      else
+        @client.get_product_serial_number
+      end
     end
 
     # @return [String] such as "bxb-oa-n3k-7"
     def host_name
-      config_get('show_version', 'host_name')
+      if @cmd_ref
+        config_get('show_version', 'host_name')
+      else
+        @client.get_host_name
+      end
     end
 
     # @return [String] such as "example.com"
     def domain_name
-      config_get('dnsclient', 'domain_name')
+      if @cmd_ref
+        config_get('dnsclient', 'domain_name')
+      else
+        @client.get_domain_name
+      end
     end
 
     # @return [Integer] System uptime, in seconds
@@ -341,7 +343,11 @@ module Cisco
     # @return [String] such as
     #   "bootflash:///n3000-uk9.6.0.2.U5.0.941.bin"
     def system
-      config_get('show_version', 'system_image')
+      if @cmd_ref
+        config_get('show_version', 'system_image')
+      else
+        @client.get_system
+      end
     end
   end
 end
