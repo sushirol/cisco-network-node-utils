@@ -245,25 +245,6 @@ class Cisco::Client
     # to be implemented by subclasses
   end
 
-  private
-
-  # Set the list of data formats supported by this client.
-  # If the client supports multiple formats, and a given feature or property
-  # can be managed by multiple formats, the list order indicates preference.
-  def data_formats=(data_formats)
-    data_formats = [data_formats] unless data_formats.is_a?(Array)
-    unknown = data_formats - Cisco::DATA_FORMATS
-    fail ArgumentError, "unknown data formats: #{unknown}" unless unknown.empty?
-    @data_formats = data_formats
-  end
-
-  # Set the platform of the node managed by this client.
-  def platform=(platform)
-    fail ArgumentError, "unknown platform #{platform}" \
-      unless Cisco::PLATFORMS.include?(platform)
-    @platform = platform
-  end
-
   def wants_cmd_ref
     true
   end
@@ -302,6 +283,25 @@ class Cisco::Client
     else
       return ""
     end
+  end
+
+  private
+
+  # Set the list of data formats supported by this client.
+  # If the client supports multiple formats, and a given feature or property
+  # can be managed by multiple formats, the list order indicates preference.
+  def data_formats=(data_formats)
+    data_formats = [data_formats] unless data_formats.is_a?(Array)
+    unknown = data_formats - Cisco::DATA_FORMATS
+    fail ArgumentError, "unknown data formats: #{unknown}" unless unknown.empty?
+    @data_formats = data_formats
+  end
+
+  # Set the platform of the node managed by this client.
+  def platform=(platform)
+    fail ArgumentError, "unknown platform #{platform}" \
+      unless Cisco::PLATFORMS.include?(platform)
+    @platform = platform
   end
 
 end
