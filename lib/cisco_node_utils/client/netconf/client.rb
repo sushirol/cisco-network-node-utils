@@ -121,7 +121,7 @@ class Cisco::Client::NETCONF < Cisco::Client
 
     begin
       reply = @client.get_config(command)
-      
+
       if reply.errors?
         fail Cisco::YangError.new(# rubocop:disable Style/RaiseArgs
                                   rejected_input: command,
@@ -138,7 +138,7 @@ class Cisco::Client::NETCONF < Cisco::Client
     false
   end
 
-  def inventory    
+  def inventory
     if !@inventory
       filter = '<inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-invmgr-oper"/>'
       reply = @client.get(filter)
@@ -149,8 +149,20 @@ class Cisco::Client::NETCONF < Cisco::Client
     @inventory
   end
 
+  def chas_inventory
+    if !@chas_inventory
+      filter = '<platform-inventory xmlns="http://cisco.com/ns/yang/Cisco-IOS-XR-plat-chas-invmgr-oper"/>'
+      reply = @client.get(filter)
+      if !reply.errors?
+        @chas_inventory = reply.response
+      end
+    end
+    @chas_inventory
+  end
+
   def get_domain_name
     "foo"
+    #later
   end
 
   def get_host_name
@@ -169,10 +181,16 @@ class Cisco::Client::NETCONF < Cisco::Client
 
   def get_system
     "foo"
+    #later
   end
 
   def get_product_serial_number
-    "foo"
+    return "" if !chas_inventory
+    product_id = ""
+    chas_inventory.elements.each("rpc-reply/data/platform-inventory/racks/rack/attributes/basic-info/serial-number") do |e|
+      product_id = e.text
+    end
+    product_id
   end
 
   def get_product_id
